@@ -36,6 +36,17 @@ export type MessageKey =
   | "options_site_limit_reached"
   | "options_site_not_covered"
   | "options_site_invalid"
+  | "stats_recent_7d"
+  | "stats_recent_30d"
+  | "stats_hours_minutes"
+  | "stats_total"
+  | "stats_average"
+  | "stats_achievement_rate"
+  | "stats_streak_current"
+  | "stats_streak_best"
+  | "stats_no_data"
+  | "stats_limit_note"
+  | "stats_premium_required"
   | "blocked_message";
 
 export function t(key: MessageKey, substitutions?: string | string[]): string {

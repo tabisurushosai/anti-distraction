@@ -1,4 +1,9 @@
 import { applyI18n, t } from "./i18n";
+import {
+  lastNDays,
+  summarizeUsage,
+  type UsageSummary,
+} from "./lib/usage-stats";
 
 type PopupState = {
   enabled: boolean;
@@ -20,6 +25,9 @@ const DEFAULTS: PopupState = {
   cooldownSeconds: 30,
   usageByDate: {},
 };
+
+const RECENT_DAYS = 7;
+const RENDER_DEBOUNCE_MS = 200;
 
 function todayKey(date: Date = new Date()): string {
   const y = date.getFullYear();
@@ -67,7 +75,7 @@ function renderToggleButton(state: PopupState): void {
   btn.textContent = state.enabled ? t("popup_toggle_off") : t("popup_toggle_on");
 }
 
-function renderUsage(state: PopupState): void {
+function renderTodaySummary(state: PopupState): void {
   const usageEl = document.getElementById("today-usage");
   const remainingEl = document.getElementById("remaining-time");
   const usedMs = state.usageByDate[todayKey()] ?? 0;
@@ -75,6 +83,50 @@ function renderUsage(state: PopupState): void {
   const remainingMin = Math.max(0, state.dailyLimitMinutes - usedMin);
   if (usageEl) usageEl.textContent = t("popup_minutes", String(usedMin));
   if (remainingEl) remainingEl.textContent = t("popup_minutes", String(remainingMin));
+}
+
+function renderRecentBars(state: PopupState): void {
+  const list = document.getElementById("recent-bars");
+  if (!list) return;
+  while (list.firstChild) list.removeChild(list.firstChild);
+
+  const keys = lastNDays(new Date(), RECENT_DAYS);
+  const summary: UsageSummary = summarizeUsage(
+    state.usageByDate,
+    keys,
+    state.dailyLimitMinutes,
+  );
+  const limit = state.dailyLimitMinutes > 0 ? state.dailyLimitMinutes : 0;
+  const peak = Math.max(1, ...summary.map((row) => row.minutes));
+
+  for (const row of summary) {
+    const li = document.createElement("li");
+    li.className = "popup__bar";
+    const fill = document.createElement("span");
+    fill.className = "popup__bar-fill";
+    let ratio: number;
+    if (limit > 0) {
+      ratio = Math.min(row.minutes / limit, 1);
+    } else {
+      ratio = peak > 0 ? row.minutes / peak : 0;
+    }
+    const heightPct = Math.max(0, Math.min(1, ratio)) * 100;
+    fill.style.height = `${heightPct}%`;
+    if (row.minutes === 0) li.classList.add("popup__bar--empty");
+    if (row.exceeded) li.classList.add("popup__bar--exceeded");
+    const label = `${row.key}: ${t("popup_minutes", String(row.minutes))}`;
+    li.setAttribute("aria-label", label);
+    li.title = label;
+    li.appendChild(fill);
+    list.appendChild(li);
+  }
+}
+
+function render(state: PopupState): void {
+  renderStatus(state);
+  renderToggleButton(state);
+  renderTodaySummary(state);
+  renderRecentBars(state);
 }
 
 async function handleToggle(): Promise<void> {
@@ -115,42 +167,48 @@ function bindEvents(state: PopupState): void {
     });
   }
 
-  const optionsBtn = document.getElementById("open-options-btn");
-  optionsBtn?.addEventListener("click", () => {
+  const openOptions = (): void => {
     if (chrome.runtime.openOptionsPage) {
       chrome.runtime.openOptionsPage();
     }
-  });
+  };
+
+  const openStats = (): void => {
+    try {
+      const url = chrome.runtime.getURL("src/options.html#stats");
+      void chrome.tabs.create({ url });
+    } catch {
+      openOptions();
+    }
+  };
+
+  const optionsBtn = document.getElementById("open-options-btn");
+  optionsBtn?.addEventListener("click", openOptions);
 
   const statsBtn = document.getElementById("open-stats-btn");
-  statsBtn?.addEventListener("click", () => {
-    if (chrome.runtime.openOptionsPage) {
-      chrome.runtime.openOptionsPage();
-    }
-  });
+  statsBtn?.addEventListener("click", openStats);
 }
 
 function watchStorage(): void {
+  let pending: number | null = null;
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "local") return;
     const touched = Object.keys(changes).some((k) =>
       Object.values(STORAGE_KEYS).includes(k as (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS]),
     );
     if (!touched) return;
-    void loadState().then((state) => {
-      renderStatus(state);
-      renderToggleButton(state);
-      renderUsage(state);
-    });
+    if (pending !== null) window.clearTimeout(pending);
+    pending = window.setTimeout(() => {
+      pending = null;
+      void loadState().then(render);
+    }, RENDER_DEBOUNCE_MS);
   });
 }
 
 async function init(): Promise<void> {
   applyI18n();
   const state = await loadState();
-  renderStatus(state);
-  renderToggleButton(state);
-  renderUsage(state);
+  render(state);
   bindEvents(state);
   watchStorage();
 }

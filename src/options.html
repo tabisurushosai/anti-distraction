@@ -132,6 +132,45 @@
         </div>
       </section>
 
+      <section id="stats" class="options__section" aria-labelledby="stats-heading">
+        <h2
+          id="stats-heading"
+          class="options__section-title"
+          data-i18n="options_section_stats"
+        >統計</h2>
+        <p
+          id="stats-range-label"
+          class="options__stats-range"
+          aria-live="polite"
+        ></p>
+        <div class="options__stats-table-wrapper">
+          <table id="stats-table" class="options__stats-table">
+            <caption id="stats-caption" class="options__stats-caption"></caption>
+            <thead>
+              <tr>
+                <th scope="col" data-stats-col="date"></th>
+                <th scope="col" data-stats-col="minutes"></th>
+                <th scope="col" data-stats-col="limit"></th>
+                <th scope="col" data-stats-col="status"></th>
+              </tr>
+            </thead>
+            <tbody id="stats-table-body"></tbody>
+          </table>
+        </div>
+        <dl id="stats-aggregate" class="options__stats-aggregate"></dl>
+        <p
+          id="stats-limit-note"
+          class="options__stats-note"
+          data-i18n="stats_limit_note"
+        >上限は現在値で評価しています</p>
+        <p
+          id="stats-premium-note"
+          class="options__stats-premium"
+          data-i18n="stats_premium_required"
+          hidden
+        >Premium で 30 日間の履歴と連続達成日数を表示</p>
+      </section>
+
       <section class="options__section" aria-labelledby="premium-heading">
         <h2
           id="premium-heading"

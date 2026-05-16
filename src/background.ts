@@ -5,6 +5,7 @@ import {
   getValue,
   getValues,
   setValue,
+  setValues,
   todayKey,
 } from "./storage";
 import { hostMatches } from "./lib/host-match";
@@ -18,11 +19,16 @@ import {
   startSession,
   type SessionState,
 } from "./lib/time-tracker";
+import { pruneUsage } from "./lib/usage-stats";
 
 const DAILY_RESET_ALARM = "daily-reset";
 const TIME_LIMIT_ALARM = "time-limit-tick";
+const DAILY_STATS_CLEANUP_ALARM = "daily-stats-cleanup";
 const TIME_LIMIT_PERIOD_MIN = 0.25;
+const STATS_RETAIN_DAYS = 90;
 const TRIAL_START_KEY = "trial_start_ts" as const;
+
+let cleanupRanOnce = false;
 
 type Tracker = {
   session: SessionState;
@@ -63,6 +69,32 @@ function scheduleTimeLimitTick(): void {
   chrome.alarms.create(TIME_LIMIT_ALARM, {
     periodInMinutes: TIME_LIMIT_PERIOD_MIN,
   });
+}
+
+function scheduleStatsCleanup(): void {
+  chrome.alarms.create(DAILY_STATS_CLEANUP_ALARM, {
+    periodInMinutes: 60 * 24,
+  });
+}
+
+async function runStatsCleanup(): Promise<void> {
+  try {
+    const usage = await getValue("usageByDate");
+    const next = pruneUsage(usage, new Date(), STATS_RETAIN_DAYS);
+    const before = Object.keys(usage).length;
+    const after = Object.keys(next).length;
+    if (before !== after) {
+      await setValues({ usageByDate: next });
+    }
+  } catch {
+    /* fail-safe: skip cleanup on storage failure */
+  }
+}
+
+async function runCleanupIfNeeded(): Promise<void> {
+  if (cleanupRanOnce) return;
+  cleanupRanOnce = true;
+  await runStatsCleanup();
 }
 
 function setIdleDetection(): void {
@@ -202,20 +234,28 @@ chrome.runtime.onInstalled.addListener(async () => {
   await initializeTrial();
   scheduleDailyReset();
   scheduleTimeLimitTick();
+  scheduleStatsCleanup();
   setIdleDetection();
   await refreshActiveTab();
+  await runCleanupIfNeeded();
 });
 
 chrome.runtime.onStartup.addListener(async () => {
   scheduleDailyReset();
   scheduleTimeLimitTick();
+  scheduleStatsCleanup();
   setIdleDetection();
   await refreshActiveTab();
+  await runCleanupIfNeeded();
 });
 
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === TIME_LIMIT_ALARM) {
     void onTick();
+    return;
+  }
+  if (alarm.name === DAILY_STATS_CLEANUP_ALARM) {
+    void runStatsCleanup();
     return;
   }
   if (alarm.name === DAILY_RESET_ALARM) {

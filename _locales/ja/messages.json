@@ -177,6 +177,60 @@
     "message": "ホスト名が正しくありません。",
     "description": "ホスト名バリデーション失敗"
   },
+  "stats_recent_7d": {
+    "message": "直近 7 日",
+    "description": "直近 7 日の見出し"
+  },
+  "stats_recent_30d": {
+    "message": "直近 30 日",
+    "description": "直近 30 日の見出し"
+  },
+  "stats_hours_minutes": {
+    "message": "$H$ 時間 $M$ 分",
+    "description": "時間と分の表記",
+    "placeholders": {
+      "h": {
+        "content": "$1",
+        "example": "2"
+      },
+      "m": {
+        "content": "$2",
+        "example": "5"
+      }
+    }
+  },
+  "stats_total": {
+    "message": "合計",
+    "description": "合計ラベル"
+  },
+  "stats_average": {
+    "message": "平均",
+    "description": "平均ラベル"
+  },
+  "stats_achievement_rate": {
+    "message": "達成率",
+    "description": "達成率ラベル"
+  },
+  "stats_streak_current": {
+    "message": "連続達成日数",
+    "description": "現在の連続達成日数ラベル"
+  },
+  "stats_streak_best": {
+    "message": "最長連続達成",
+    "description": "最長連続達成ラベル"
+  },
+  "stats_no_data": {
+    "message": "データなし",
+    "description": "データなし表示"
+  },
+  "stats_limit_note": {
+    "message": "上限は現在値で評価しています",
+    "description": "履歴上限注釈"
+  },
+  "stats_premium_required": {
+    "message": "Premium で 30 日間の履歴と連続達成日数を表示",
+    "description": "Premium ゲート説明"
+  },
   "blocked_message": {
     "message": "本日の上限に達しました。明日まで待ちましょう。",
     "description": "ブロック画面のメッセージ"

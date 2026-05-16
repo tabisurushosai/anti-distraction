@@ -177,6 +177,60 @@
     "message": "Invalid host name.",
     "description": "Host name validation failure"
   },
+  "stats_recent_7d": {
+    "message": "Last 7 days",
+    "description": "Last 7 days heading"
+  },
+  "stats_recent_30d": {
+    "message": "Last 30 days",
+    "description": "Last 30 days heading"
+  },
+  "stats_hours_minutes": {
+    "message": "$H$h $M$m",
+    "description": "Hours and minutes notation",
+    "placeholders": {
+      "h": {
+        "content": "$1",
+        "example": "2"
+      },
+      "m": {
+        "content": "$2",
+        "example": "5"
+      }
+    }
+  },
+  "stats_total": {
+    "message": "Total",
+    "description": "Total label"
+  },
+  "stats_average": {
+    "message": "Average",
+    "description": "Average label"
+  },
+  "stats_achievement_rate": {
+    "message": "Achievement rate",
+    "description": "Achievement rate label"
+  },
+  "stats_streak_current": {
+    "message": "Current streak",
+    "description": "Current streak label"
+  },
+  "stats_streak_best": {
+    "message": "Best streak",
+    "description": "Best streak label"
+  },
+  "stats_no_data": {
+    "message": "No data",
+    "description": "No data display"
+  },
+  "stats_limit_note": {
+    "message": "Limit values reflect current settings",
+    "description": "History limit note"
+  },
+  "stats_premium_required": {
+    "message": "Premium unlocks 30-day history and streaks",
+    "description": "Premium gate explanation"
+  },
   "blocked_message": {
     "message": "You've reached today's limit. Try again tomorrow.",
     "description": "Block screen message"

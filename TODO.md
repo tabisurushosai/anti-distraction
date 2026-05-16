@@ -30,7 +30,7 @@
 - [x] T023: site-list-edit — 実装
 - [x] T024: site-list-edit — テスト・整合
 - [x] T025: daily-stats — 設計
-- [ ] T026: daily-stats — 実装
+- [x] T026: daily-stats — 実装
 - [ ] T027: daily-stats — テスト・整合
 - [ ] T028: unblock-cooldown — 設計
 - [ ] T029: unblock-cooldown — 実装

@@ -1,5 +1,16 @@
 import { applyI18n, t } from "./i18n";
 import { normalizeHost, isCoveredByManifest } from "./lib/site-input";
+import {
+  achievementRate,
+  averageMinutes,
+  computeStreak,
+  formatMinutes,
+  lastNDays,
+  summarizeUsage,
+  totalMinutes,
+  type UsageSummary,
+} from "./lib/usage-stats";
+import { isPremiumEffective } from "./lib/premium-status";
 
 type OptionsState = {
   sites: string[];
@@ -9,6 +20,7 @@ type OptionsState = {
   cooldownSeconds: number;
   trialStartTs: number | null;
   premiumUnlocked: boolean;
+  usageByDate: Record<string, number>;
 };
 
 const STORAGE_KEYS = {
@@ -19,7 +31,12 @@ const STORAGE_KEYS = {
   cooldownSeconds: "cooldownSeconds",
   trialStartTs: "trial_start_ts",
   premiumUnlocked: "premium_unlocked",
+  usageByDate: "usageByDate",
 } as const;
+
+const STATS_FREE_DAYS = 7;
+const STATS_PREMIUM_DAYS = 30;
+const STATS_DEBOUNCE_MS = 500;
 
 const DEFAULTS: OptionsState = {
   sites: [
@@ -36,6 +53,7 @@ const DEFAULTS: OptionsState = {
   cooldownSeconds: 30,
   trialStartTs: null,
   premiumUnlocked: false,
+  usageByDate: {},
 };
 
 const TRIAL_DAYS = 7;
@@ -76,6 +94,10 @@ async function loadState(): Promise<OptionsState> {
     trialStartTs:
       typeof data.trial_start_ts === "number" ? data.trial_start_ts : null,
     premiumUnlocked: data.premium_unlocked === true,
+    usageByDate:
+      data.usageByDate && typeof data.usageByDate === "object" && !Array.isArray(data.usageByDate)
+        ? (data.usageByDate as Record<string, number>)
+        : DEFAULTS.usageByDate,
   };
 }
 
@@ -201,6 +223,154 @@ function renderPremium(): void {
   if (upgradeBtn) upgradeBtn.disabled = false;
 }
 
+function isPremiumNow(): boolean {
+  return isPremiumEffective(
+    {
+      premium_unlocked: view.premiumUnlocked,
+      trial_start_ts: view.trialStartTs,
+    },
+    Date.now(),
+  );
+}
+
+function formatMinutesLocalized(minutes: number): string {
+  return formatMinutes(minutes, {
+    hoursMinutes: t("stats_hours_minutes", [String(Math.floor(minutes / 60)), String(minutes % 60)]),
+    minutesOnly: t("popup_minutes", String(minutes)),
+  });
+}
+
+function renderStatsTableHeader(): void {
+  const table = document.getElementById("stats-table");
+  if (!table) return;
+  const heads = table.querySelectorAll<HTMLTableCellElement>("thead th");
+  heads.forEach((th) => {
+    const col = th.dataset.statsCol;
+    if (col === "date") th.textContent = isPremiumNow() ? t("stats_recent_30d") : t("stats_recent_7d");
+    else if (col === "minutes") th.textContent = t("popup_today_usage");
+    else if (col === "limit") th.textContent = t("options_limit_daily");
+    else if (col === "status") th.textContent = t("stats_achievement_rate");
+  });
+}
+
+function renderStatsCaption(days: number): void {
+  const cap = document.getElementById("stats-caption");
+  if (!cap) return;
+  cap.textContent = days === STATS_PREMIUM_DAYS ? t("stats_recent_30d") : t("stats_recent_7d");
+}
+
+function renderStatsRangeLabel(): void {
+  const label = document.getElementById("stats-range-label");
+  if (!label) return;
+  label.textContent = isPremiumNow() ? t("stats_recent_30d") : t("stats_recent_7d");
+}
+
+function renderStatsRows(summary: UsageSummary): void {
+  const tbody = document.getElementById("stats-table-body");
+  if (!tbody) return;
+  while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
+
+  const limitMinutes = Math.max(0, Math.floor(view.dailyLimitMinutes));
+  const limitText =
+    limitMinutes > 0 ? t("popup_minutes", String(limitMinutes)) : "—";
+
+  for (let i = summary.length - 1; i >= 0; i--) {
+    const row = summary[i];
+    const tr = document.createElement("tr");
+
+    const tdDate = document.createElement("td");
+    tdDate.textContent = row.key;
+
+    const tdMin = document.createElement("td");
+    tdMin.textContent =
+      row.minutes === 0 && (view.usageByDate[row.key] === undefined)
+        ? t("stats_no_data")
+        : formatMinutesLocalized(row.minutes);
+
+    const tdLimit = document.createElement("td");
+    tdLimit.textContent = limitText;
+
+    const tdStatus = document.createElement("td");
+    if (limitMinutes === 0) {
+      tdStatus.textContent = "—";
+    } else if (row.exceeded) {
+      tdStatus.textContent = "!";
+      tdStatus.classList.add("options__stats-status--exceeded");
+    } else {
+      tdStatus.textContent = "✓";
+      tdStatus.classList.add("options__stats-status--ok");
+    }
+
+    tr.appendChild(tdDate);
+    tr.appendChild(tdMin);
+    tr.appendChild(tdLimit);
+    tr.appendChild(tdStatus);
+    tbody.appendChild(tr);
+  }
+}
+
+function appendAggregateItem(parent: HTMLElement, label: string, value: string): void {
+  const wrap = document.createElement("div");
+  const dt = document.createElement("dt");
+  dt.textContent = label;
+  const dd = document.createElement("dd");
+  dd.textContent = value;
+  wrap.appendChild(dt);
+  wrap.appendChild(dd);
+  parent.appendChild(wrap);
+}
+
+function renderStatsAggregate(summary: UsageSummary): void {
+  const dl = document.getElementById("stats-aggregate");
+  if (!dl) return;
+  while (dl.firstChild) dl.removeChild(dl.firstChild);
+
+  const limitMinutes = Math.max(0, Math.floor(view.dailyLimitMinutes));
+  const total = totalMinutes(summary);
+  const avg = averageMinutes(summary);
+  const rate = achievementRate(summary, limitMinutes);
+
+  appendAggregateItem(dl, t("stats_total"), formatMinutesLocalized(total));
+  appendAggregateItem(dl, t("stats_average"), formatMinutesLocalized(avg));
+  appendAggregateItem(
+    dl,
+    t("stats_achievement_rate"),
+    rate === null ? "—" : `${Math.round(rate * 100)}%`,
+  );
+
+  if (isPremiumNow()) {
+    const streak = computeStreak(summary, limitMinutes);
+    if (streak !== null) {
+      appendAggregateItem(dl, t("stats_streak_current"), `${streak.current}`);
+      appendAggregateItem(dl, t("stats_streak_best"), `${streak.best}`);
+    }
+  }
+}
+
+function renderPremiumGate(): void {
+  const note = document.getElementById("stats-premium-note");
+  if (!note) return;
+  note.hidden = isPremiumNow();
+}
+
+function renderStats(): void {
+  const days = isPremiumNow() ? STATS_PREMIUM_DAYS : STATS_FREE_DAYS;
+  const keys = lastNDays(new Date(), days);
+  const summary = summarizeUsage(view.usageByDate, keys, view.dailyLimitMinutes);
+  renderStatsTableHeader();
+  renderStatsCaption(days);
+  renderStatsRangeLabel();
+  renderStatsRows(summary);
+  renderStatsAggregate(summary);
+  renderPremiumGate();
+}
+
+function scrollToStatsIfRequested(): void {
+  if (window.location.hash !== "#stats") return;
+  const target = document.getElementById("stats");
+  if (target) target.scrollIntoView({ behavior: "auto", block: "start" });
+}
+
 function flashSaved(): void {
   const el = document.getElementById("save-status");
   if (!el) return;
@@ -215,6 +385,7 @@ function bindEvents(): void {
   const dailyEl = document.getElementById("daily-limit-input") as HTMLInputElement | null;
   dailyEl?.addEventListener("input", () => {
     view.dailyLimitMinutes = clampInt(Number(dailyEl.value), 0, 24 * 60);
+    renderStats();
   });
 
   const sessionEl = document.getElementById("session-limit-input") as HTMLInputElement | null;
@@ -303,12 +474,15 @@ function bindEvents(): void {
 }
 
 function watchStorage(): void {
+  let statsPending: number | null = null;
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "local") return;
     const watched: string[] = [
       STORAGE_KEYS.trialStartTs,
       STORAGE_KEYS.premiumUnlocked,
       STORAGE_KEYS.sites,
+      STORAGE_KEYS.usageByDate,
+      STORAGE_KEYS.dailyLimitMinutes,
     ];
     if (!watched.some((k) => k in changes)) return;
     void loadState().then((next) => {
@@ -318,8 +492,19 @@ function watchStorage(): void {
         view.sites = next.sites;
         renderSites();
       }
+      if (STORAGE_KEYS.usageByDate in changes) {
+        view.usageByDate = next.usageByDate;
+      }
+      if (STORAGE_KEYS.dailyLimitMinutes in changes) {
+        view.dailyLimitMinutes = next.dailyLimitMinutes;
+      }
       renderPremium();
       renderSiteLimit();
+      if (statsPending !== null) window.clearTimeout(statsPending);
+      statsPending = window.setTimeout(() => {
+        statsPending = null;
+        renderStats();
+      }, STATS_DEBOUNCE_MS);
     });
   });
 }
@@ -332,8 +517,10 @@ async function init(): Promise<void> {
   renderInputs();
   renderPremium();
   renderSiteLimit();
+  renderStats();
   bindEvents();
   watchStorage();
+  scrollToStatsIfRequested();
 }
 
 if (document.readyState === "loading") {
