@@ -25,7 +25,7 @@
 - [x] T018: tab-gray — テスト・整合
 - [x] T019: time-limit — 設計
 - [x] T020: time-limit — 実装
-- [ ] T021: time-limit — テスト・整合
+- [x] T021: time-limit — テスト・整合
 - [ ] T022: site-list-edit — 設計
 - [ ] T023: site-list-edit — 実装
 - [ ] T024: site-list-edit — テスト・整合
