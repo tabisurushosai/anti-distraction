@@ -23,7 +23,7 @@
 - [x] T016: tab-gray — 設計
 - [x] T017: tab-gray — 実装
 - [x] T018: tab-gray — テスト・整合
-- [ ] T019: time-limit — 設計
+- [x] T019: time-limit — 設計
 - [ ] T020: time-limit — 実装
 - [ ] T021: time-limit — テスト・整合
 - [ ] T022: site-list-edit — 設計
