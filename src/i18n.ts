@@ -1,0 +1,66 @@
+export type MessageKey =
+  | "appName"
+  | "appDesc"
+  | "popup_title"
+  | "popup_status_enabled"
+  | "popup_status_disabled"
+  | "popup_toggle_on"
+  | "popup_toggle_off"
+  | "popup_today_usage"
+  | "popup_remaining_time"
+  | "popup_minutes"
+  | "popup_open_options"
+  | "popup_open_stats"
+  | "popup_unblock_request"
+  | "popup_cooldown_active"
+  | "options_title"
+  | "options_section_sites"
+  | "options_section_limits"
+  | "options_section_appearance"
+  | "options_section_cooldown"
+  | "options_section_stats"
+  | "options_section_premium"
+  | "options_site_add"
+  | "options_site_remove"
+  | "options_site_placeholder"
+  | "options_limit_daily"
+  | "options_limit_session"
+  | "options_gray_intensity"
+  | "options_cooldown_seconds"
+  | "options_save"
+  | "options_saved"
+  | "options_reset"
+  | "options_upgrade_premium"
+  | "options_trial_remaining"
+  | "options_premium_active"
+  | "blocked_message";
+
+export function t(key: MessageKey, substitutions?: string | string[]): string {
+  const msg = chrome.i18n.getMessage(key, substitutions);
+  return msg === "" ? key : msg;
+}
+
+export function applyI18n(root: ParentNode = document): void {
+  root.querySelectorAll<HTMLElement>("[data-i18n]").forEach((el) => {
+    const key = el.dataset.i18n as MessageKey | undefined;
+    if (key) el.textContent = t(key);
+  });
+  root.querySelectorAll<HTMLElement>("[data-i18n-placeholder]").forEach((el) => {
+    const key = el.dataset.i18nPlaceholder as MessageKey | undefined;
+    if (key && "placeholder" in el) {
+      (el as HTMLInputElement | HTMLTextAreaElement).placeholder = t(key);
+    }
+  });
+  root.querySelectorAll<HTMLElement>("[data-i18n-title]").forEach((el) => {
+    const key = el.dataset.i18nTitle as MessageKey | undefined;
+    if (key) el.title = t(key);
+  });
+  root.querySelectorAll<HTMLElement>("[data-i18n-aria-label]").forEach((el) => {
+    const key = el.dataset.i18nAriaLabel as MessageKey | undefined;
+    if (key) el.setAttribute("aria-label", t(key));
+  });
+}
+
+export function getUiLocale(): string {
+  return chrome.i18n.getUILanguage();
+}
