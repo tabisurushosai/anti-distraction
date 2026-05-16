@@ -156,5 +156,21 @@
   "blocked_message": {
     "message": "本日の上限に達しました。明日まで待ちましょう。",
     "description": "ブロック画面のメッセージ"
+  },
+  "overlay_blocked_title": {
+    "message": "時間制限に達しました",
+    "description": "オーバーレイのタイトル"
+  },
+  "overlay_blocked_reason_daily": {
+    "message": "本日の累計上限を超えました。明日 0:00 までブロックされます。",
+    "description": "日次上限超過の説明"
+  },
+  "overlay_blocked_reason_session": {
+    "message": "連続滞在の上限を超えました。タブを閉じて休憩しましょう。",
+    "description": "セッション上限超過の説明"
+  },
+  "overlay_continue_short": {
+    "message": "30秒だけ続ける",
+    "description": "オーバーレイの一時継続ボタン"
   }
 }

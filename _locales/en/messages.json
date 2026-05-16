@@ -156,5 +156,21 @@
   "blocked_message": {
     "message": "You've reached today's limit. Try again tomorrow.",
     "description": "Block screen message"
+  },
+  "overlay_blocked_title": {
+    "message": "Time limit reached",
+    "description": "Overlay title"
+  },
+  "overlay_blocked_reason_daily": {
+    "message": "You've passed the daily total. Blocked until midnight.",
+    "description": "Daily limit reason"
+  },
+  "overlay_blocked_reason_session": {
+    "message": "You've passed the per-session limit. Close this tab and take a break.",
+    "description": "Session limit reason"
+  },
+  "overlay_continue_short": {
+    "message": "Continue for 30 seconds",
+    "description": "Overlay short continue button"
   }
 }
