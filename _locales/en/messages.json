@@ -153,6 +153,30 @@
     "message": "Premium active",
     "description": "Premium active display"
   },
+  "options_site_limit_reached": {
+    "message": "Free plan allows up to $MAX$ sites. Upgrade to Premium for unlimited sites.",
+    "description": "Site count limit reached",
+    "placeholders": {
+      "max": {
+        "content": "$1",
+        "example": "10"
+      }
+    }
+  },
+  "options_site_not_covered": {
+    "message": "$HOST$ is outside the extension's monitored range, so it may not be affected.",
+    "description": "Site outside manifest matches warning",
+    "placeholders": {
+      "host": {
+        "content": "$1",
+        "example": "example.org"
+      }
+    }
+  },
+  "options_site_invalid": {
+    "message": "Invalid host name.",
+    "description": "Host name validation failure"
+  },
   "blocked_message": {
     "message": "You've reached today's limit. Try again tomorrow.",
     "description": "Block screen message"

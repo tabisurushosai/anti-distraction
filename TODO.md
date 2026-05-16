@@ -27,7 +27,7 @@
 - [x] T020: time-limit — 実装
 - [x] T021: time-limit — テスト・整合
 - [x] T022: site-list-edit — 設計
-- [ ] T023: site-list-edit — 実装
+- [x] T023: site-list-edit — 実装
 - [ ] T024: site-list-edit — テスト・整合
 - [ ] T025: daily-stats — 設計
 - [ ] T026: daily-stats — 実装

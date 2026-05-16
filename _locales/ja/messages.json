@@ -153,6 +153,30 @@
     "message": "Premium 有効",
     "description": "Premium 有効表示"
   },
+  "options_site_limit_reached": {
+    "message": "無料版では最大 $MAX$ 件までです。Premium にアップグレードすると無制限で追加できます。",
+    "description": "サイト件数上限到達の説明",
+    "placeholders": {
+      "max": {
+        "content": "$1",
+        "example": "10"
+      }
+    }
+  },
+  "options_site_not_covered": {
+    "message": "$HOST$ は監視範囲外のため効果が出ない場合があります。",
+    "description": "manifest matches 範囲外サイト警告",
+    "placeholders": {
+      "host": {
+        "content": "$1",
+        "example": "example.org"
+      }
+    }
+  },
+  "options_site_invalid": {
+    "message": "ホスト名が正しくありません。",
+    "description": "ホスト名バリデーション失敗"
+  },
   "blocked_message": {
     "message": "本日の上限に達しました。明日まで待ちましょう。",
     "description": "ブロック画面のメッセージ"

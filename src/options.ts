@@ -1,4 +1,5 @@
 import { applyI18n, t } from "./i18n";
+import { normalizeHost, isCoveredByManifest } from "./lib/site-input";
 
 type OptionsState = {
   sites: string[];
@@ -39,22 +40,7 @@ const DEFAULTS: OptionsState = {
 
 const TRIAL_DAYS = 7;
 const DAY_MS = 24 * 60 * 60 * 1000;
-
-const HOST_RE = /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/i;
-
-function normalizeHost(input: string): string | null {
-  let v = input.trim().toLowerCase();
-  if (!v) return null;
-  if (v.includes("://")) {
-    try {
-      v = new URL(v).hostname;
-    } catch {
-      return null;
-    }
-  }
-  v = v.replace(/^\*\./, "").replace(/^www\./, "").replace(/\/.*$/, "");
-  return HOST_RE.test(v) ? v : null;
-}
+const FREE_SITES_LIMIT = 10;
 
 function clampInt(value: number, min: number, max: number): number {
   if (!Number.isFinite(value)) return min;
@@ -94,16 +80,61 @@ async function loadState(): Promise<OptionsState> {
 }
 
 async function saveState(state: OptionsState): Promise<void> {
-  await chrome.storage.local.set({
-    [STORAGE_KEYS.sites]: state.sites,
-    [STORAGE_KEYS.dailyLimitMinutes]: state.dailyLimitMinutes,
-    [STORAGE_KEYS.sessionLimitMinutes]: state.sessionLimitMinutes,
-    [STORAGE_KEYS.grayIntensity]: state.grayIntensity,
-    [STORAGE_KEYS.cooldownSeconds]: state.cooldownSeconds,
-  });
+  try {
+    await chrome.storage.local.set({
+      [STORAGE_KEYS.sites]: state.sites,
+      [STORAGE_KEYS.dailyLimitMinutes]: state.dailyLimitMinutes,
+      [STORAGE_KEYS.sessionLimitMinutes]: state.sessionLimitMinutes,
+      [STORAGE_KEYS.grayIntensity]: state.grayIntensity,
+      [STORAGE_KEYS.cooldownSeconds]: state.cooldownSeconds,
+    });
+  } catch (e) {
+    console.warn("[options] failed to persist settings", e);
+  }
 }
 
 const view: OptionsState = { ...DEFAULTS };
+
+function isUnlimited(): boolean {
+  if (view.premiumUnlocked) return true;
+  if (view.trialStartTs !== null) {
+    const elapsed = Date.now() - view.trialStartTs;
+    if (elapsed >= 0 && elapsed < TRIAL_DAYS * DAY_MS) return true;
+  }
+  return false;
+}
+
+function showSiteWarning(host: string): void {
+  const el = document.getElementById("site-warning");
+  if (!el) return;
+  el.textContent = t("options_site_not_covered", host);
+  el.hidden = false;
+}
+
+function clearSiteWarning(): void {
+  const el = document.getElementById("site-warning");
+  if (!el) return;
+  el.textContent = "";
+  el.hidden = true;
+}
+
+function renderSiteLimit(): void {
+  const el = document.getElementById("site-limit");
+  const addBtn = document.getElementById("add-site-btn") as HTMLButtonElement | null;
+  const newSite = document.getElementById("new-site-input") as HTMLInputElement | null;
+  const atLimit = !isUnlimited() && view.sites.length >= FREE_SITES_LIMIT;
+  if (el) {
+    if (atLimit) {
+      el.textContent = t("options_site_limit_reached", String(FREE_SITES_LIMIT));
+      el.hidden = false;
+    } else {
+      el.textContent = "";
+      el.hidden = true;
+    }
+  }
+  if (addBtn) addBtn.disabled = atLimit;
+  if (newSite) newSite.disabled = atLimit;
+}
 
 function renderSites(): void {
   const list = document.getElementById("sites-list");
@@ -125,6 +156,8 @@ function renderSites(): void {
     btn.addEventListener("click", () => {
       view.sites = view.sites.filter((s) => s !== host);
       renderSites();
+      renderSiteLimit();
+      clearSiteWarning();
     });
 
     li.appendChild(span);
@@ -205,8 +238,17 @@ function bindEvents(): void {
   const newSite = document.getElementById("new-site-input") as HTMLInputElement | null;
   const addSite = (): void => {
     if (!newSite) return;
+    if (!isUnlimited() && view.sites.length >= FREE_SITES_LIMIT) {
+      renderSiteLimit();
+      return;
+    }
     const host = normalizeHost(newSite.value);
     if (!host) {
+      const warn = document.getElementById("site-warning");
+      if (warn) {
+        warn.textContent = t("options_site_invalid");
+        warn.hidden = false;
+      }
       newSite.focus();
       newSite.select();
       return;
@@ -214,6 +256,14 @@ function bindEvents(): void {
     if (!view.sites.includes(host)) {
       view.sites = [...view.sites, host];
       renderSites();
+      renderSiteLimit();
+      if (isCoveredByManifest(host)) {
+        clearSiteWarning();
+      } else {
+        showSiteWarning(host);
+      }
+    } else {
+      clearSiteWarning();
     }
     newSite.value = "";
     newSite.focus();
@@ -242,6 +292,8 @@ function bindEvents(): void {
     });
     renderSites();
     renderInputs();
+    renderSiteLimit();
+    clearSiteWarning();
   });
 
   const upgradeBtn = document.getElementById("upgrade-btn");
@@ -256,12 +308,18 @@ function watchStorage(): void {
     const watched: string[] = [
       STORAGE_KEYS.trialStartTs,
       STORAGE_KEYS.premiumUnlocked,
+      STORAGE_KEYS.sites,
     ];
     if (!watched.some((k) => k in changes)) return;
     void loadState().then((next) => {
       view.trialStartTs = next.trialStartTs;
       view.premiumUnlocked = next.premiumUnlocked;
+      if (STORAGE_KEYS.sites in changes) {
+        view.sites = next.sites;
+        renderSites();
+      }
       renderPremium();
+      renderSiteLimit();
     });
   });
 }
@@ -273,6 +331,7 @@ async function init(): Promise<void> {
   renderSites();
   renderInputs();
   renderPremium();
+  renderSiteLimit();
   bindEvents();
   watchStorage();
 }

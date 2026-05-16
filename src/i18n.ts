@@ -33,6 +33,9 @@ export type MessageKey =
   | "options_upgrade_premium"
   | "options_trial_remaining"
   | "options_premium_active"
+  | "options_site_limit_reached"
+  | "options_site_not_covered"
+  | "options_site_invalid"
   | "blocked_message";
 
 export function t(key: MessageKey, substitutions?: string | string[]): string {
