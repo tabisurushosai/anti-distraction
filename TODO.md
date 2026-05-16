@@ -32,7 +32,7 @@
 - [x] T025: daily-stats — 設計
 - [x] T026: daily-stats — 実装
 - [x] T027: daily-stats — テスト・整合
-- [ ] T028: unblock-cooldown — 設計
+- [x] T028: unblock-cooldown — 設計
 - [ ] T029: unblock-cooldown — 実装
 - [ ] T030: unblock-cooldown — テスト・整合
 
