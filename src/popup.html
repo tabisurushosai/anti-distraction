@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title data-i18n="popup_title">脱注意散漫</title>
+    <link rel="stylesheet" href="./popup.css" />
+  </head>
+  <body>
+    <main class="popup" role="main">
+      <header class="popup__header">
+        <h1 class="popup__title" data-i18n="popup_title">脱注意散漫</h1>
+        <span
+          id="status-badge"
+          class="popup__status popup__status--enabled"
+          data-i18n="popup_status_enabled"
+          aria-live="polite"
+        >有効</span>
+      </header>
+
+      <section class="popup__section" aria-labelledby="usage-heading">
+        <h2 id="usage-heading" class="popup__section-title" data-i18n="popup_today_usage">
+          本日の利用時間
+        </h2>
+        <p class="popup__metric">
+          <span id="today-usage" class="popup__metric-value">--</span>
+        </p>
+      </section>
+
+      <section class="popup__section" aria-labelledby="remaining-heading">
+        <h2 id="remaining-heading" class="popup__section-title" data-i18n="popup_remaining_time">
+          残り時間
+        </h2>
+        <p class="popup__metric">
+          <span id="remaining-time" class="popup__metric-value">--</span>
+        </p>
+      </section>
+
+      <div class="popup__actions">
+        <button
+          id="toggle-btn"
+          type="button"
+          class="popup__btn popup__btn--primary"
+          data-i18n="popup_toggle_off"
+        >オフにする</button>
+        <button
+          id="unblock-btn"
+          type="button"
+          class="popup__btn popup__btn--secondary"
+          data-i18n="popup_unblock_request"
+        >一時解除をリクエスト</button>
+        <p
+          id="cooldown-text"
+          class="popup__cooldown"
+          aria-live="polite"
+          hidden
+        ></p>
+      </div>
+
+      <nav class="popup__links" aria-label="links">
+        <button
+          id="open-options-btn"
+          type="button"
+          class="popup__link"
+          data-i18n="popup_open_options"
+        >設定を開く</button>
+        <button
+          id="open-stats-btn"
+          type="button"
+          class="popup__link"
+          data-i18n="popup_open_stats"
+        >統計を見る</button>
+      </nav>
+    </main>
+    <script type="module" src="./popup.ts"></script>
+  </body>
+</html>
