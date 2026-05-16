@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title data-i18n="options_title">脱注意散漫 設定</title>
+    <link rel="stylesheet" href="./options.css" />
+  </head>
+  <body>
+    <main class="options" role="main">
+      <header class="options__header">
+        <h1 class="options__title" data-i18n="options_title">脱注意散漫 設定</h1>
+        <p
+          id="save-status"
+          class="options__save-status"
+          role="status"
+          aria-live="polite"
+          hidden
+        ></p>
+      </header>
+
+      <section class="options__section" aria-labelledby="sites-heading">
+        <h2 id="sites-heading" class="options__section-title" data-i18n="options_section_sites">
+          対象サイト
+        </h2>
+        <ul id="sites-list" class="options__sites" aria-label="sites"></ul>
+        <div class="options__site-add">
+          <input
+            id="new-site-input"
+            type="text"
+            class="options__input"
+            data-i18n-placeholder="options_site_placeholder"
+            placeholder="例: example.com"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <button
+            id="add-site-btn"
+            type="button"
+            class="options__btn options__btn--secondary"
+            data-i18n="options_site_add"
+          >サイトを追加</button>
+        </div>
+      </section>
+
+      <section class="options__section" aria-labelledby="limits-heading">
+        <h2 id="limits-heading" class="options__section-title" data-i18n="options_section_limits">
+          滞在時間の上限
+        </h2>
+        <div class="options__field">
+          <label for="daily-limit-input" data-i18n="options_limit_daily">
+            1日の上限 (分)
+          </label>
+          <input
+            id="daily-limit-input"
+            type="number"
+            class="options__input"
+            min="0"
+            step="1"
+            inputmode="numeric"
+          />
+        </div>
+        <div class="options__field">
+          <label for="session-limit-input" data-i18n="options_limit_session">
+            1セッションの上限 (分)
+          </label>
+          <input
+            id="session-limit-input"
+            type="number"
+            class="options__input"
+            min="0"
+            step="1"
+            inputmode="numeric"
+          />
+        </div>
+      </section>
+
+      <section class="options__section" aria-labelledby="appearance-heading">
+        <h2
+          id="appearance-heading"
+          class="options__section-title"
+          data-i18n="options_section_appearance"
+        >外観</h2>
+        <div class="options__field">
+          <label for="gray-intensity-input" data-i18n="options_gray_intensity">
+            灰色化の強さ
+          </label>
+          <input
+            id="gray-intensity-input"
+            type="range"
+            class="options__range"
+            min="0"
+            max="100"
+            step="1"
+          />
+          <output id="gray-intensity-output" class="options__range-output" for="gray-intensity-input">--</output>
+        </div>
+      </section>
+
+      <section class="options__section" aria-labelledby="cooldown-heading">
+        <h2
+          id="cooldown-heading"
+          class="options__section-title"
+          data-i18n="options_section_cooldown"
+        >解除クールダウン</h2>
+        <div class="options__field">
+          <label for="cooldown-input" data-i18n="options_cooldown_seconds">
+            解除待機時間 (秒)
+          </label>
+          <input
+            id="cooldown-input"
+            type="number"
+            class="options__input"
+            min="0"
+            step="1"
+            inputmode="numeric"
+          />
+        </div>
+      </section>
+
+      <section class="options__section" aria-labelledby="premium-heading">
+        <h2
+          id="premium-heading"
+          class="options__section-title"
+          data-i18n="options_section_premium"
+        >Premium</h2>
+        <p id="premium-status" class="options__premium-status">--</p>
+        <button
+          id="upgrade-btn"
+          type="button"
+          class="options__btn options__btn--secondary"
+          data-i18n="options_upgrade_premium"
+        >Premium にアップグレード ($3)</button>
+      </section>
+
+      <div class="options__actions">
+        <button
+          id="save-btn"
+          type="button"
+          class="options__btn options__btn--primary"
+          data-i18n="options_save"
+        >保存</button>
+        <button
+          id="reset-btn"
+          type="button"
+          class="options__btn options__btn--secondary"
+          data-i18n="options_reset"
+        >初期設定に戻す</button>
+      </div>
+    </main>
+    <script type="module" src="./options.ts"></script>
+  </body>
+</html>
