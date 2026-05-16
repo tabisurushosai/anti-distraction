@@ -1,4 +1,4 @@
-import { MANIFEST_MATCH_HOSTS } from "./manifest-hosts";
+import { MANIFEST_MATCH_HOSTS } from "./manifest-hosts.ts";
 
 const HOST_RE = /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/i;
 

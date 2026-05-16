@@ -28,7 +28,7 @@
 - [x] T021: time-limit — テスト・整合
 - [x] T022: site-list-edit — 設計
 - [x] T023: site-list-edit — 実装
-- [ ] T024: site-list-edit — テスト・整合
+- [x] T024: site-list-edit — テスト・整合
 - [ ] T025: daily-stats — 設計
 - [ ] T026: daily-stats — 実装
 - [ ] T027: daily-stats — テスト・整合
