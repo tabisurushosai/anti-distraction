@@ -1,0 +1,17 @@
+{
+  "name": "anti-distraction",
+  "version": "1.0.0",
+  "description": "SNS/YouTube tab gray-out and time limit Chrome extension (Manifest V3)",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "lint": "tsc --noEmit",
+    "package": "node scripts/package.mjs"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.268",
+    "typescript": "^5.4.5",
+    "vite": "^5.2.10"
+  }
+}
