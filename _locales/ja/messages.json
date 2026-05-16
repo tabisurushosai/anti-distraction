@@ -1,0 +1,160 @@
+{
+  "appName": {
+    "message": "脱注意散漫",
+    "description": "拡張機能の名前"
+  },
+  "appDesc": {
+    "message": "SNS/YouTube タブを灰色化し、滞在時間を制限して集中をサポートします。",
+    "description": "拡張機能の概要"
+  },
+  "popup_title": {
+    "message": "脱注意散漫",
+    "description": "ポップアップのタイトル"
+  },
+  "popup_status_enabled": {
+    "message": "有効",
+    "description": "ステータス: 有効"
+  },
+  "popup_status_disabled": {
+    "message": "無効",
+    "description": "ステータス: 無効"
+  },
+  "popup_toggle_on": {
+    "message": "オンにする",
+    "description": "オンにするボタン"
+  },
+  "popup_toggle_off": {
+    "message": "オフにする",
+    "description": "オフにするボタン"
+  },
+  "popup_today_usage": {
+    "message": "本日の利用時間",
+    "description": "本日の利用時間ラベル"
+  },
+  "popup_remaining_time": {
+    "message": "残り時間",
+    "description": "残り時間ラベル"
+  },
+  "popup_minutes": {
+    "message": "$MIN$ 分",
+    "description": "分単位の表記",
+    "placeholders": {
+      "min": {
+        "content": "$1",
+        "example": "10"
+      }
+    }
+  },
+  "popup_open_options": {
+    "message": "設定を開く",
+    "description": "設定を開くボタン"
+  },
+  "popup_open_stats": {
+    "message": "統計を見る",
+    "description": "統計画面リンク"
+  },
+  "popup_unblock_request": {
+    "message": "一時解除をリクエスト",
+    "description": "一時解除ボタン"
+  },
+  "popup_cooldown_active": {
+    "message": "クールダウン中: $SEC$ 秒",
+    "description": "クールダウン表示",
+    "placeholders": {
+      "sec": {
+        "content": "$1",
+        "example": "30"
+      }
+    }
+  },
+  "options_title": {
+    "message": "脱注意散漫 設定",
+    "description": "設定画面のタイトル"
+  },
+  "options_section_sites": {
+    "message": "対象サイト",
+    "description": "対象サイトセクション"
+  },
+  "options_section_limits": {
+    "message": "滞在時間の上限",
+    "description": "滞在時間上限セクション"
+  },
+  "options_section_appearance": {
+    "message": "外観",
+    "description": "外観セクション"
+  },
+  "options_section_cooldown": {
+    "message": "解除クールダウン",
+    "description": "解除クールダウンセクション"
+  },
+  "options_section_stats": {
+    "message": "統計",
+    "description": "統計セクション"
+  },
+  "options_section_premium": {
+    "message": "Premium",
+    "description": "Premium セクション"
+  },
+  "options_site_add": {
+    "message": "サイトを追加",
+    "description": "サイト追加ボタン"
+  },
+  "options_site_remove": {
+    "message": "削除",
+    "description": "サイト削除ボタン"
+  },
+  "options_site_placeholder": {
+    "message": "例: example.com",
+    "description": "サイト入力欄プレースホルダ"
+  },
+  "options_limit_daily": {
+    "message": "1日の上限 (分)",
+    "description": "1日上限入力欄"
+  },
+  "options_limit_session": {
+    "message": "1セッションの上限 (分)",
+    "description": "1セッション上限入力欄"
+  },
+  "options_gray_intensity": {
+    "message": "灰色化の強さ",
+    "description": "灰色化強度入力欄"
+  },
+  "options_cooldown_seconds": {
+    "message": "解除待機時間 (秒)",
+    "description": "クールダウン秒数入力欄"
+  },
+  "options_save": {
+    "message": "保存",
+    "description": "保存ボタン"
+  },
+  "options_saved": {
+    "message": "保存しました",
+    "description": "保存完了表示"
+  },
+  "options_reset": {
+    "message": "初期設定に戻す",
+    "description": "リセットボタン"
+  },
+  "options_upgrade_premium": {
+    "message": "Premium にアップグレード ($3)",
+    "description": "Premiumアップグレードボタン"
+  },
+  "options_trial_remaining": {
+    "message": "無料お試し残り $DAYS$ 日",
+    "description": "無料お試し残日数",
+    "placeholders": {
+      "days": {
+        "content": "$1",
+        "example": "5"
+      }
+    }
+  },
+  "options_premium_active": {
+    "message": "Premium 有効",
+    "description": "Premium 有効表示"
+  },
+  "blocked_message": {
+    "message": "本日の上限に達しました。明日まで待ちましょう。",
+    "description": "ブロック画面のメッセージ"
+  }
+}
