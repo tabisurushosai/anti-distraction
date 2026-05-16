@@ -1,0 +1,160 @@
+{
+  "appName": {
+    "message": "Anti-Distraction",
+    "description": "Extension name"
+  },
+  "appDesc": {
+    "message": "Grays out SNS/YouTube tabs and limits time spent to support your focus.",
+    "description": "Extension description"
+  },
+  "popup_title": {
+    "message": "Anti-Distraction",
+    "description": "Popup title"
+  },
+  "popup_status_enabled": {
+    "message": "Enabled",
+    "description": "Status: enabled"
+  },
+  "popup_status_disabled": {
+    "message": "Disabled",
+    "description": "Status: disabled"
+  },
+  "popup_toggle_on": {
+    "message": "Turn on",
+    "description": "Turn on button"
+  },
+  "popup_toggle_off": {
+    "message": "Turn off",
+    "description": "Turn off button"
+  },
+  "popup_today_usage": {
+    "message": "Today's usage",
+    "description": "Today's usage label"
+  },
+  "popup_remaining_time": {
+    "message": "Remaining time",
+    "description": "Remaining time label"
+  },
+  "popup_minutes": {
+    "message": "$MIN$ min",
+    "description": "Minutes notation",
+    "placeholders": {
+      "min": {
+        "content": "$1",
+        "example": "10"
+      }
+    }
+  },
+  "popup_open_options": {
+    "message": "Open settings",
+    "description": "Open settings button"
+  },
+  "popup_open_stats": {
+    "message": "View stats",
+    "description": "Stats link"
+  },
+  "popup_unblock_request": {
+    "message": "Request temporary unblock",
+    "description": "Temporary unblock button"
+  },
+  "popup_cooldown_active": {
+    "message": "Cooldown: $SEC$ s",
+    "description": "Cooldown display",
+    "placeholders": {
+      "sec": {
+        "content": "$1",
+        "example": "30"
+      }
+    }
+  },
+  "options_title": {
+    "message": "Anti-Distraction Settings",
+    "description": "Settings page title"
+  },
+  "options_section_sites": {
+    "message": "Target sites",
+    "description": "Target sites section"
+  },
+  "options_section_limits": {
+    "message": "Time limits",
+    "description": "Time limits section"
+  },
+  "options_section_appearance": {
+    "message": "Appearance",
+    "description": "Appearance section"
+  },
+  "options_section_cooldown": {
+    "message": "Unblock cooldown",
+    "description": "Unblock cooldown section"
+  },
+  "options_section_stats": {
+    "message": "Statistics",
+    "description": "Statistics section"
+  },
+  "options_section_premium": {
+    "message": "Premium",
+    "description": "Premium section"
+  },
+  "options_site_add": {
+    "message": "Add site",
+    "description": "Add site button"
+  },
+  "options_site_remove": {
+    "message": "Remove",
+    "description": "Remove site button"
+  },
+  "options_site_placeholder": {
+    "message": "e.g. example.com",
+    "description": "Site input placeholder"
+  },
+  "options_limit_daily": {
+    "message": "Daily limit (minutes)",
+    "description": "Daily limit input"
+  },
+  "options_limit_session": {
+    "message": "Per-session limit (minutes)",
+    "description": "Per-session limit input"
+  },
+  "options_gray_intensity": {
+    "message": "Gray-out intensity",
+    "description": "Gray-out intensity input"
+  },
+  "options_cooldown_seconds": {
+    "message": "Unblock wait time (seconds)",
+    "description": "Cooldown seconds input"
+  },
+  "options_save": {
+    "message": "Save",
+    "description": "Save button"
+  },
+  "options_saved": {
+    "message": "Saved",
+    "description": "Saved confirmation"
+  },
+  "options_reset": {
+    "message": "Reset to defaults",
+    "description": "Reset button"
+  },
+  "options_upgrade_premium": {
+    "message": "Upgrade to Premium ($3)",
+    "description": "Premium upgrade button"
+  },
+  "options_trial_remaining": {
+    "message": "Free trial: $DAYS$ days left",
+    "description": "Free trial remaining days",
+    "placeholders": {
+      "days": {
+        "content": "$1",
+        "example": "5"
+      }
+    }
+  },
+  "options_premium_active": {
+    "message": "Premium active",
+    "description": "Premium active display"
+  },
+  "blocked_message": {
+    "message": "You've reached today's limit. Try again tomorrow.",
+    "description": "Block screen message"
+  }
+}
