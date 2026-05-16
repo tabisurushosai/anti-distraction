@@ -11,6 +11,13 @@ import {
   type UsageSummary,
 } from "./lib/usage-stats";
 import { isPremiumEffective } from "./lib/premium-status";
+import {
+  COOLDOWN_FREE_FIXED_SECONDS,
+  COOLDOWN_MAX_SECONDS,
+  COOLDOWN_MIN_SECONDS,
+  usedToday,
+  dailyMax,
+} from "./lib/cooldown";
 
 type OptionsState = {
   sites: string[];
@@ -21,6 +28,9 @@ type OptionsState = {
   trialStartTs: number | null;
   premiumUnlocked: boolean;
   usageByDate: Record<string, number>;
+  unblockCountByDate: Record<string, number>;
+  unblockMaxPerDayFree: number;
+  unblockMaxPerDayPremium: number;
 };
 
 const STORAGE_KEYS = {
@@ -32,6 +42,9 @@ const STORAGE_KEYS = {
   trialStartTs: "trial_start_ts",
   premiumUnlocked: "premium_unlocked",
   usageByDate: "usageByDate",
+  unblockCountByDate: "unblockCountByDate",
+  unblockMaxPerDayFree: "unblockMaxPerDayFree",
+  unblockMaxPerDayPremium: "unblockMaxPerDayPremium",
 } as const;
 
 const STATS_FREE_DAYS = 7;
@@ -54,6 +67,9 @@ const DEFAULTS: OptionsState = {
   trialStartTs: null,
   premiumUnlocked: false,
   usageByDate: {},
+  unblockCountByDate: {},
+  unblockMaxPerDayFree: 3,
+  unblockMaxPerDayPremium: 10,
 };
 
 const TRIAL_DAYS = 7;
@@ -98,6 +114,20 @@ async function loadState(): Promise<OptionsState> {
       data.usageByDate && typeof data.usageByDate === "object" && !Array.isArray(data.usageByDate)
         ? (data.usageByDate as Record<string, number>)
         : DEFAULTS.usageByDate,
+    unblockCountByDate:
+      data.unblockCountByDate &&
+      typeof data.unblockCountByDate === "object" &&
+      !Array.isArray(data.unblockCountByDate)
+        ? (data.unblockCountByDate as Record<string, number>)
+        : DEFAULTS.unblockCountByDate,
+    unblockMaxPerDayFree:
+      typeof data.unblockMaxPerDayFree === "number"
+        ? data.unblockMaxPerDayFree
+        : DEFAULTS.unblockMaxPerDayFree,
+    unblockMaxPerDayPremium:
+      typeof data.unblockMaxPerDayPremium === "number"
+        ? data.unblockMaxPerDayPremium
+        : DEFAULTS.unblockMaxPerDayPremium,
   };
 }
 
@@ -199,7 +229,52 @@ function renderInputs(): void {
   if (session) session.value = String(view.sessionLimitMinutes);
   if (gray) gray.value = String(view.grayIntensity);
   if (grayOut) grayOut.textContent = `${view.grayIntensity}%`;
-  if (cooldown) cooldown.value = String(view.cooldownSeconds);
+  if (cooldown) {
+    cooldown.value = String(view.cooldownSeconds);
+    cooldown.disabled = !isPremiumNow();
+  }
+}
+
+function todayKeyLocal(date: Date = new Date()): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function renderCooldownSection(): void {
+  const usedEl = document.getElementById("cooldown-used-today");
+  const noteEl = document.getElementById("cooldown-note");
+  const premium = isPremiumNow();
+  const max = dailyMax(
+    {
+      unblockCountByDate: view.unblockCountByDate,
+      unblockMaxPerDayFree: view.unblockMaxPerDayFree,
+      unblockMaxPerDayPremium: view.unblockMaxPerDayPremium,
+    },
+    premium,
+  );
+  const used = usedToday(
+    {
+      unblockCountByDate: view.unblockCountByDate,
+      unblockMaxPerDayFree: view.unblockMaxPerDayFree,
+      unblockMaxPerDayPremium: view.unblockMaxPerDayPremium,
+    },
+    todayKeyLocal(),
+  );
+  if (usedEl) {
+    usedEl.textContent = t("options_cooldown_used_today", [
+      String(used),
+      String(max),
+    ]);
+  }
+  if (noteEl) {
+    noteEl.textContent = t("options_cooldown_note", [
+      String(Math.max(1, Math.floor(view.cooldownSeconds))),
+      String(view.unblockMaxPerDayFree),
+      String(view.unblockMaxPerDayPremium),
+    ]);
+  }
 }
 
 function renderPremium(): void {
@@ -402,7 +477,17 @@ function bindEvents(): void {
 
   const cooldownEl = document.getElementById("cooldown-input") as HTMLInputElement | null;
   cooldownEl?.addEventListener("input", () => {
-    view.cooldownSeconds = clampInt(Number(cooldownEl.value), 0, 3600);
+    if (!isPremiumNow()) {
+      view.cooldownSeconds = COOLDOWN_FREE_FIXED_SECONDS;
+      cooldownEl.value = String(COOLDOWN_FREE_FIXED_SECONDS);
+    } else {
+      view.cooldownSeconds = clampInt(
+        Number(cooldownEl.value),
+        COOLDOWN_MIN_SECONDS,
+        COOLDOWN_MAX_SECONDS,
+      );
+    }
+    renderCooldownSection();
   });
 
   const addBtn = document.getElementById("add-site-btn");
@@ -465,6 +550,7 @@ function bindEvents(): void {
     renderInputs();
     renderSiteLimit();
     clearSiteWarning();
+    renderCooldownSection();
   });
 
   const upgradeBtn = document.getElementById("upgrade-btn");
@@ -483,6 +569,10 @@ function watchStorage(): void {
       STORAGE_KEYS.sites,
       STORAGE_KEYS.usageByDate,
       STORAGE_KEYS.dailyLimitMinutes,
+      STORAGE_KEYS.unblockCountByDate,
+      STORAGE_KEYS.unblockMaxPerDayFree,
+      STORAGE_KEYS.unblockMaxPerDayPremium,
+      STORAGE_KEYS.cooldownSeconds,
     ];
     if (!watched.some((k) => k in changes)) return;
     void loadState().then((next) => {
@@ -498,8 +588,22 @@ function watchStorage(): void {
       if (STORAGE_KEYS.dailyLimitMinutes in changes) {
         view.dailyLimitMinutes = next.dailyLimitMinutes;
       }
+      if (STORAGE_KEYS.unblockCountByDate in changes) {
+        view.unblockCountByDate = next.unblockCountByDate;
+      }
+      if (STORAGE_KEYS.unblockMaxPerDayFree in changes) {
+        view.unblockMaxPerDayFree = next.unblockMaxPerDayFree;
+      }
+      if (STORAGE_KEYS.unblockMaxPerDayPremium in changes) {
+        view.unblockMaxPerDayPremium = next.unblockMaxPerDayPremium;
+      }
+      if (STORAGE_KEYS.cooldownSeconds in changes) {
+        view.cooldownSeconds = next.cooldownSeconds;
+      }
       renderPremium();
       renderSiteLimit();
+      renderInputs();
+      renderCooldownSection();
       if (statsPending !== null) window.clearTimeout(statsPending);
       statsPending = window.setTimeout(() => {
         statsPending = null;
@@ -518,6 +622,7 @@ async function init(): Promise<void> {
   renderPremium();
   renderSiteLimit();
   renderStats();
+  renderCooldownSection();
   bindEvents();
   watchStorage();
   scrollToStatsIfRequested();

@@ -5,6 +5,8 @@ const STYLE_ID = "anti-distraction-style";
 const ROOT_ATTR = "data-anti-distraction";
 const OVERLAY_ID = "anti-distraction-overlay";
 const OVERLAY_STYLE_ID = "anti-distraction-overlay-style";
+const COUNTDOWN_ID = "ad-cooldown-countdown";
+const DENIED_ID = "ad-cooldown-denied";
 
 function ensureStyleEl(): HTMLStyleElement {
   let el = document.getElementById(STYLE_ID) as HTMLStyleElement | null;
@@ -86,23 +88,171 @@ function ensureOverlayStyle(): void {
   margin-top: 0.5rem;
   padding: 0.6rem 1.2rem;
   font-size: 0.95rem;
-  border: 1px solid #888;
+  border: 1px solid #aaa;
   background: transparent;
   color: #fff;
   border-radius: 6px;
+  cursor: pointer;
+}
+#${OVERLAY_ID} button:disabled {
   cursor: not-allowed;
   opacity: 0.55;
+}
+#${OVERLAY_ID} #${COUNTDOWN_ID} {
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+  color: #fff;
+  min-height: 1.2em;
+}
+#${OVERLAY_ID} #${DENIED_ID} {
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+  color: #ffb4b4;
+  min-height: 1.2em;
 }
 `;
   (document.head || document.documentElement).appendChild(el);
 }
 
-function i18n(key: string, fallback: string): string {
+function i18n(key: string, fallback: string, sub?: string | string[]): string {
   try {
-    const v = chrome.i18n?.getMessage?.(key);
+    const v = chrome.i18n?.getMessage?.(key, sub as string | string[]);
     return v && v.length > 0 ? v : fallback;
   } catch {
     return fallback;
+  }
+}
+
+type CountdownHandles = {
+  visualTimer: number | null;
+  ariaTimer: number | null;
+};
+
+const countdown: CountdownHandles = {
+  visualTimer: null,
+  ariaTimer: null,
+};
+
+function stopCountdown(): void {
+  if (countdown.visualTimer !== null) {
+    window.clearInterval(countdown.visualTimer);
+    countdown.visualTimer = null;
+  }
+  if (countdown.ariaTimer !== null) {
+    window.clearInterval(countdown.ariaTimer);
+    countdown.ariaTimer = null;
+  }
+}
+
+function setCountdownText(el: HTMLElement, seconds: number, ariaMode: boolean): void {
+  const safe = Math.max(0, Math.ceil(seconds));
+  const text = i18n("cooldown_remaining", `${safe}s remaining`, String(safe));
+  if (ariaMode) {
+    el.setAttribute("aria-label", text);
+  } else {
+    el.textContent = text;
+  }
+}
+
+function startCountdown(untilMs: number, button: HTMLButtonElement): void {
+  stopCountdown();
+  const card = document.querySelector(`#${OVERLAY_ID} .ad-overlay-card`);
+  if (!card) return;
+  let cd = document.getElementById(COUNTDOWN_ID) as HTMLElement | null;
+  if (!cd) {
+    cd = document.createElement("p");
+    cd.id = COUNTDOWN_ID;
+    cd.setAttribute("aria-live", "polite");
+    cd.setAttribute("aria-atomic", "true");
+    card.appendChild(cd);
+  }
+  button.setAttribute("aria-describedby", COUNTDOWN_ID);
+  button.disabled = true;
+  button.setAttribute("aria-disabled", "true");
+
+  const tickVisual = (): void => {
+    const remaining = Math.max(0, (untilMs - Date.now()) / 1000);
+    setCountdownText(cd!, remaining, false);
+    if (remaining <= 0) {
+      stopCountdown();
+      cd!.textContent = i18n("cooldown_returning", "Re-blocking shortly");
+      hideOverlay();
+    }
+  };
+  const tickAria = (): void => {
+    const remaining = Math.max(0, (untilMs - Date.now()) / 1000);
+    setCountdownText(cd!, remaining, true);
+    if (remaining <= 0) return;
+  };
+  tickVisual();
+  tickAria();
+  countdown.visualTimer = window.setInterval(tickVisual, 250);
+  countdown.ariaTimer = window.setInterval(tickAria, 3000);
+}
+
+function showDeniedMessage(reason: string): void {
+  const card = document.querySelector(`#${OVERLAY_ID} .ad-overlay-card`);
+  if (!card) return;
+  let el = document.getElementById(DENIED_ID) as HTMLElement | null;
+  if (!el) {
+    el = document.createElement("p");
+    el.id = DENIED_ID;
+    el.setAttribute("role", "alert");
+    card.appendChild(el);
+  }
+  const map: Record<string, { key: string; fallback: string }> = {
+    "rate-limit": {
+      key: "cooldown_denied_rate_limit",
+      fallback: "Daily unblock limit reached",
+    },
+    disabled: {
+      key: "cooldown_denied_disabled",
+      fallback: "Extension is disabled",
+    },
+    "not-blocked": {
+      key: "cooldown_denied_not_blocked",
+      fallback: "Not currently blocked",
+    },
+    "premium-required": {
+      key: "cooldown_denied_premium_required",
+      fallback: "Premium required",
+    },
+    "storage-error": {
+      key: "cooldown_denied_storage",
+      fallback: "Failed to save state",
+    },
+  };
+  const entry = map[reason] ?? map["rate-limit"];
+  el.textContent = i18n(entry.key, entry.fallback);
+}
+
+function clearDenied(): void {
+  const el = document.getElementById(DENIED_ID);
+  if (el && el.parentNode) el.parentNode.removeChild(el);
+}
+
+async function requestUnblock(): Promise<void> {
+  try {
+    const res = (await chrome.runtime.sendMessage({
+      type: "ad/time-limit/request-unblock",
+    })) as { ok?: boolean; untilMs?: number; reason?: string } | undefined;
+    const button = document.querySelector(`#${OVERLAY_ID} button`) as HTMLButtonElement | null;
+    if (!button) return;
+    if (res && res.ok && typeof res.untilMs === "number") {
+      clearDenied();
+      startCountdown(res.untilMs, button);
+    } else {
+      showDeniedMessage(res?.reason ?? "rate-limit");
+      button.disabled = false;
+      button.removeAttribute("aria-disabled");
+    }
+  } catch {
+    const button = document.querySelector(`#${OVERLAY_ID} button`) as HTMLButtonElement | null;
+    if (button) {
+      button.disabled = false;
+      button.removeAttribute("aria-disabled");
+    }
+    showDeniedMessage("storage-error");
   }
 }
 
@@ -131,8 +281,13 @@ function showOverlay(reason: "daily" | "session"): void {
   const button = document.createElement("button");
   button.type = "button";
   button.textContent = i18n("overlay_continue_short", "30秒だけ続ける");
-  button.disabled = true;
-  button.setAttribute("aria-disabled", "true");
+  button.disabled = false;
+  button.removeAttribute("aria-disabled");
+  button.addEventListener("click", () => {
+    button.disabled = true;
+    button.setAttribute("aria-disabled", "true");
+    void requestUnblock();
+  });
 
   card.appendChild(title);
   card.appendChild(reasonText);
@@ -148,6 +303,7 @@ function showOverlay(reason: "daily" | "session"): void {
 }
 
 function hideOverlay(): void {
+  stopCountdown();
   const el = document.getElementById(OVERLAY_ID);
   if (el && el.parentNode) el.parentNode.removeChild(el);
 }
@@ -172,12 +328,17 @@ function evaluateGray(state: State): void {
 
 type IncomingMessage =
   | { type: "ad/time-limit/block"; reason: "daily" | "session" }
-  | { type: "ad/time-limit/unblock" };
+  | { type: "ad/time-limit/unblock" }
+  | { type: "ad/time-limit/cooldown-active"; untilMs: number };
 
 function isIncomingMessage(v: unknown): v is IncomingMessage {
   if (!v || typeof v !== "object") return false;
   const t = (v as { type?: unknown }).type;
-  return t === "ad/time-limit/block" || t === "ad/time-limit/unblock";
+  return (
+    t === "ad/time-limit/block" ||
+    t === "ad/time-limit/unblock" ||
+    t === "ad/time-limit/cooldown-active"
+  );
 }
 
 function installMessageListener(): void {
@@ -185,6 +346,12 @@ function installMessageListener(): void {
     if (!isIncomingMessage(message)) return;
     if (message.type === "ad/time-limit/block") {
       showOverlay(message.reason);
+    } else if (message.type === "ad/time-limit/cooldown-active") {
+      const button = document.querySelector(`#${OVERLAY_ID} button`) as HTMLButtonElement | null;
+      if (button) {
+        clearDenied();
+        startCountdown(message.untilMs, button);
+      }
     } else {
       hideOverlay();
     }

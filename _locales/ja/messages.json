@@ -250,5 +250,71 @@
   "overlay_continue_short": {
     "message": "30秒だけ続ける",
     "description": "オーバーレイの一時継続ボタン"
+  },
+  "cooldown_remaining": {
+    "message": "残り $SEC$ 秒",
+    "description": "クールダウン残時間",
+    "placeholders": {
+      "sec": {
+        "content": "$1",
+        "example": "30"
+      }
+    }
+  },
+  "cooldown_returning": {
+    "message": "まもなく再ブロックされます",
+    "description": "再ブロック直前の説明"
+  },
+  "cooldown_denied_rate_limit": {
+    "message": "本日の解除回数を使い切りました",
+    "description": "回数上限到達"
+  },
+  "cooldown_denied_disabled": {
+    "message": "拡張が無効化されています",
+    "description": "拡張無効時の解除拒否"
+  },
+  "cooldown_denied_not_blocked": {
+    "message": "現在ブロック中ではありません",
+    "description": "ブロック中ではない時の解除拒否"
+  },
+  "cooldown_denied_premium_required": {
+    "message": "Premium が必要です",
+    "description": "Premium 必須時の拒否"
+  },
+  "cooldown_denied_storage": {
+    "message": "保存に失敗しました",
+    "description": "ストレージ書き込み失敗"
+  },
+  "options_cooldown_note": {
+    "message": "$SEC$ 秒経過後に自動で再ブロックされます。1 日あたり最大 $N$ 回まで(Premium で $P$ 回)。",
+    "description": "解除クールダウンの説明",
+    "placeholders": {
+      "sec": {
+        "content": "$1",
+        "example": "30"
+      },
+      "n": {
+        "content": "$2",
+        "example": "3"
+      },
+      "p": {
+        "content": "$3",
+        "example": "10"
+      }
+    }
+  },
+  "options_cooldown_used_today": {
+    "message": "本日の使用回数: $USED$ / $MAX$",
+    "description": "今日の解除使用回数",
+    "placeholders": {
+      "used": {
+        "content": "$1",
+        "example": "1"
+      },
+      "max": {
+        "content": "$2",
+        "example": "3"
+      }
+    }
   }
 }

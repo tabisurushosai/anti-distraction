@@ -33,7 +33,7 @@
 - [x] T026: daily-stats — 実装
 - [x] T027: daily-stats — テスト・整合
 - [x] T028: unblock-cooldown — 設計
-- [ ] T029: unblock-cooldown — 実装
+- [x] T029: unblock-cooldown — 実装
 - [ ] T030: unblock-cooldown — テスト・整合
 
 ## Phase 4: Premium ゲート (T031-T033)

@@ -125,11 +125,21 @@
             id="cooldown-input"
             type="number"
             class="options__input"
-            min="0"
+            min="5"
+            max="300"
             step="1"
             inputmode="numeric"
           />
         </div>
+        <p
+          id="cooldown-used-today"
+          class="options__cooldown-used"
+          aria-live="polite"
+        >--</p>
+        <p
+          id="cooldown-note"
+          class="options__cooldown-note"
+        >--</p>
       </section>
 
       <section id="stats" class="options__section" aria-labelledby="stats-heading">

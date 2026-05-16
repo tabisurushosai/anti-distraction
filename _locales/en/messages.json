@@ -250,5 +250,71 @@
   "overlay_continue_short": {
     "message": "Continue for 30 seconds",
     "description": "Overlay short continue button"
+  },
+  "cooldown_remaining": {
+    "message": "$SEC$s remaining",
+    "description": "Cooldown remaining",
+    "placeholders": {
+      "sec": {
+        "content": "$1",
+        "example": "30"
+      }
+    }
+  },
+  "cooldown_returning": {
+    "message": "Re-blocking shortly",
+    "description": "Re-blocking soon"
+  },
+  "cooldown_denied_rate_limit": {
+    "message": "Daily unblock limit reached",
+    "description": "Daily limit reached"
+  },
+  "cooldown_denied_disabled": {
+    "message": "Extension is disabled",
+    "description": "Extension disabled denial"
+  },
+  "cooldown_denied_not_blocked": {
+    "message": "Not currently blocked",
+    "description": "Not blocked denial"
+  },
+  "cooldown_denied_premium_required": {
+    "message": "Premium required",
+    "description": "Premium required denial"
+  },
+  "cooldown_denied_storage": {
+    "message": "Failed to save state",
+    "description": "Storage write failure"
+  },
+  "options_cooldown_note": {
+    "message": "Auto re-blocks after $SEC$s. Up to $N$ per day (Premium: $P$).",
+    "description": "Unblock cooldown explanatory note",
+    "placeholders": {
+      "sec": {
+        "content": "$1",
+        "example": "30"
+      },
+      "n": {
+        "content": "$2",
+        "example": "3"
+      },
+      "p": {
+        "content": "$3",
+        "example": "10"
+      }
+    }
+  },
+  "options_cooldown_used_today": {
+    "message": "Used today: $USED$ / $MAX$",
+    "description": "Used unblocks today",
+    "placeholders": {
+      "used": {
+        "content": "$1",
+        "example": "1"
+      },
+      "max": {
+        "content": "$2",
+        "example": "3"
+      }
+    }
   }
 }

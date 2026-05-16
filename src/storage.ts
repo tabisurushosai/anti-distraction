@@ -1,4 +1,5 @@
 export type UsageByDate = Record<string, number>;
+export type UnblockCountByDate = Record<string, number>;
 
 export type StorageSchema = {
   enabled: boolean;
@@ -11,6 +12,10 @@ export type StorageSchema = {
   schemaVersion: number;
   trial_start_ts: number | null;
   premium_unlocked: boolean;
+  lastUnblockAt: number | null;
+  unblockCountByDate: UnblockCountByDate;
+  unblockMaxPerDayFree: number;
+  unblockMaxPerDayPremium: number;
 };
 
 export type StorageKey = keyof StorageSchema;
@@ -37,6 +42,10 @@ export const DEFAULTS: StorageSchema = {
   schemaVersion: SCHEMA_VERSION,
   trial_start_ts: null,
   premium_unlocked: false,
+  lastUnblockAt: null,
+  unblockCountByDate: {},
+  unblockMaxPerDayFree: 3,
+  unblockMaxPerDayPremium: 10,
 };
 
 type Validator<T> = (value: unknown) => value is T;
@@ -60,6 +69,13 @@ function isUsageByDate(v: unknown): v is UsageByDate {
   );
 }
 
+function isUnblockCountByDate(v: unknown): v is UnblockCountByDate {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return false;
+  return Object.values(v as Record<string, unknown>).every((n) =>
+    typeof n === "number" && Number.isFinite(n) && n >= 0,
+  );
+}
+
 function isNumberOrNull(v: unknown): v is number | null {
   return v === null || isFiniteNumber(v);
 }
@@ -75,6 +91,10 @@ const VALIDATORS: { [K in StorageKey]: Validator<StorageSchema[K]> } = {
   schemaVersion: isFiniteNumber,
   trial_start_ts: isNumberOrNull,
   premium_unlocked: isBoolean,
+  lastUnblockAt: isNumberOrNull,
+  unblockCountByDate: isUnblockCountByDate,
+  unblockMaxPerDayFree: isFiniteNumber,
+  unblockMaxPerDayPremium: isFiniteNumber,
 };
 
 function coerce<K extends StorageKey>(key: K, raw: unknown): StorageSchema[K] {

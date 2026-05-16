@@ -47,7 +47,20 @@ export type MessageKey =
   | "stats_no_data"
   | "stats_limit_note"
   | "stats_premium_required"
-  | "blocked_message";
+  | "blocked_message"
+  | "overlay_blocked_title"
+  | "overlay_blocked_reason_daily"
+  | "overlay_blocked_reason_session"
+  | "overlay_continue_short"
+  | "cooldown_remaining"
+  | "cooldown_returning"
+  | "cooldown_denied_rate_limit"
+  | "cooldown_denied_disabled"
+  | "cooldown_denied_not_blocked"
+  | "cooldown_denied_premium_required"
+  | "cooldown_denied_storage"
+  | "options_cooldown_note"
+  | "options_cooldown_used_today";
 
 export function t(key: MessageKey, substitutions?: string | string[]): string {
   const msg = chrome.i18n.getMessage(key, substitutions);

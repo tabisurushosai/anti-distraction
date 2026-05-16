@@ -20,6 +20,13 @@ import {
   type SessionState,
 } from "./lib/time-tracker";
 import { pruneUsage } from "./lib/usage-stats";
+import {
+  canUnblock,
+  isCooldownActive,
+  recordUnblock,
+  type CooldownResponse,
+} from "./lib/cooldown";
+import { isPremiumEffective } from "./lib/premium-status";
 
 const DAILY_RESET_ALARM = "daily-reset";
 const TIME_LIMIT_ALARM = "time-limit-tick";
@@ -37,6 +44,8 @@ type Tracker = {
   windowFocused: boolean;
   idle: boolean;
   lastBlockTabId: number | null;
+  cooldownUntil: number | null;
+  unblockInFlight: boolean;
 };
 
 const tracker: Tracker = {
@@ -46,7 +55,28 @@ const tracker: Tracker = {
   windowFocused: true,
   idle: false,
   lastBlockTabId: null,
+  cooldownUntil: null,
+  unblockInFlight: false,
 };
+
+async function restoreCooldownFromStorage(): Promise<void> {
+  try {
+    const { lastUnblockAt, cooldownSeconds } = await getValues([
+      "lastUnblockAt",
+      "cooldownSeconds",
+    ] as const);
+    if (lastUnblockAt !== null) {
+      const untilMs = lastUnblockAt + cooldownSeconds * 1000;
+      if (untilMs > Date.now()) {
+        tracker.cooldownUntil = untilMs;
+      } else {
+        tracker.cooldownUntil = null;
+      }
+    }
+  } catch {
+    /* fail-safe */
+  }
+}
 
 async function initializeTrial(): Promise<void> {
   const existing = await chrome.storage.local.get(TRIAL_START_KEY);
@@ -79,12 +109,25 @@ function scheduleStatsCleanup(): void {
 
 async function runStatsCleanup(): Promise<void> {
   try {
-    const usage = await getValue("usageByDate");
-    const next = pruneUsage(usage, new Date(), STATS_RETAIN_DAYS);
-    const before = Object.keys(usage).length;
-    const after = Object.keys(next).length;
-    if (before !== after) {
-      await setValues({ usageByDate: next });
+    const { usageByDate, unblockCountByDate } = await getValues([
+      "usageByDate",
+      "unblockCountByDate",
+    ] as const);
+    const today = new Date();
+    const nextUsage = pruneUsage(usageByDate, today, STATS_RETAIN_DAYS);
+    const nextUnblock = pruneUsage(unblockCountByDate, today, STATS_RETAIN_DAYS);
+    const patch: Partial<{
+      usageByDate: typeof nextUsage;
+      unblockCountByDate: typeof nextUnblock;
+    }> = {};
+    if (Object.keys(usageByDate).length !== Object.keys(nextUsage).length) {
+      patch.usageByDate = nextUsage;
+    }
+    if (Object.keys(unblockCountByDate).length !== Object.keys(nextUnblock).length) {
+      patch.unblockCountByDate = nextUnblock;
+    }
+    if (Object.keys(patch).length > 0) {
+      await setValues(patch);
     }
   } catch {
     /* fail-safe: skip cleanup on storage failure */
@@ -144,7 +187,10 @@ async function applyActiveTab(tab: chrome.tabs.Tab): Promise<void> {
   tracker.activeTabId = tabId;
 
   if (matched === null) {
-    if (tracker.activeHost !== null) resetSession();
+    if (tracker.activeHost !== null) {
+      resetSession();
+      tracker.cooldownUntil = null;
+    }
     tracker.activeHost = null;
     return;
   }
@@ -152,6 +198,7 @@ async function applyActiveTab(tab: chrome.tabs.Tab): Promise<void> {
   if (!isSameHost(tracker.activeHost, matched)) {
     tracker.activeHost = matched;
     tracker.session = startSession(matched, Date.now());
+    tracker.cooldownUntil = null;
   } else {
     tracker.activeHost = matched;
     if (tracker.session.host === null) {
@@ -179,6 +226,8 @@ async function evaluateAndBlock(): Promise<void> {
     "sessionLimitMinutes",
     "usageByDate",
     "sites",
+    "lastUnblockAt",
+    "cooldownSeconds",
   ] as const);
   if (!cfg.enabled || tracker.activeHost === null) {
     await sendToTab(tabId, { type: "ad/time-limit/unblock" });
@@ -187,6 +236,20 @@ async function evaluateAndBlock(): Promise<void> {
   if (!hostMatches(tracker.activeHost, cfg.sites)) {
     await sendToTab(tabId, { type: "ad/time-limit/unblock" });
     return;
+  }
+  const now = Date.now();
+  if (
+    tracker.cooldownUntil !== null &&
+    tracker.cooldownUntil > now
+  ) {
+    return;
+  }
+  if (isCooldownActive(now, cfg.lastUnblockAt, cfg.cooldownSeconds)) {
+    tracker.cooldownUntil = (cfg.lastUnblockAt ?? 0) + cfg.cooldownSeconds * 1000;
+    return;
+  }
+  if (tracker.cooldownUntil !== null && tracker.cooldownUntil <= now) {
+    tracker.cooldownUntil = null;
   }
   const todayMs = cfg.usageByDate[todayKey()] ?? 0;
   const reason = evaluateBlock(
@@ -203,6 +266,106 @@ async function evaluateAndBlock(): Promise<void> {
     tracker.lastBlockTabId = tabId;
   } else {
     await sendToTab(tabId, { type: "ad/time-limit/unblock" });
+  }
+}
+
+async function onRequestUnblock(senderTabId: number | null): Promise<CooldownResponse> {
+  try {
+    const cfg = await getValues([
+      "enabled",
+      "sites",
+      "cooldownSeconds",
+      "dailyLimitMinutes",
+      "sessionLimitMinutes",
+      "usageByDate",
+      "lastUnblockAt",
+      "unblockCountByDate",
+      "unblockMaxPerDayFree",
+      "unblockMaxPerDayPremium",
+      "premium_unlocked",
+      "trial_start_ts",
+    ] as const);
+
+    if (!cfg.enabled) return { ok: false, reason: "disabled" };
+    if (tracker.activeHost === null) return { ok: false, reason: "not-blocked" };
+    if (!hostMatches(tracker.activeHost, cfg.sites)) {
+      return { ok: false, reason: "not-blocked" };
+    }
+
+    const now = Date.now();
+
+    if (tracker.cooldownUntil !== null && tracker.cooldownUntil > now) {
+      return { ok: true, untilMs: tracker.cooldownUntil };
+    }
+
+    const todayMs = cfg.usageByDate[todayKey()] ?? 0;
+    const reason = evaluateBlock(
+      {
+        enabled: cfg.enabled,
+        dailyLimitMinutes: cfg.dailyLimitMinutes,
+        sessionLimitMinutes: cfg.sessionLimitMinutes,
+      },
+      todayMs,
+      tracker.session.accumulatedMs,
+    );
+    if (reason === null) return { ok: false, reason: "not-blocked" };
+
+    if (tracker.unblockInFlight) {
+      return { ok: false, reason: "rate-limit" };
+    }
+    tracker.unblockInFlight = true;
+
+    try {
+      const isPremium = isPremiumEffective(
+        {
+          premium_unlocked: cfg.premium_unlocked,
+          trial_start_ts: cfg.trial_start_ts,
+        },
+        now,
+      );
+      const key = todayKey();
+      const check = canUnblock(
+        {
+          unblockCountByDate: cfg.unblockCountByDate,
+          unblockMaxPerDayFree: cfg.unblockMaxPerDayFree,
+          unblockMaxPerDayPremium: cfg.unblockMaxPerDayPremium,
+        },
+        key,
+        isPremium,
+      );
+      if (!check.ok) {
+        return { ok: false, reason: check.reason };
+      }
+
+      const recorded = recordUnblock(
+        {
+          unblockCountByDate: cfg.unblockCountByDate,
+          unblockMaxPerDayFree: cfg.unblockMaxPerDayFree,
+          unblockMaxPerDayPremium: cfg.unblockMaxPerDayPremium,
+        },
+        key,
+        now,
+      );
+      const seconds = Math.max(1, Math.floor(cfg.cooldownSeconds));
+      const untilMs = now + seconds * 1000;
+      await setValues({
+        lastUnblockAt: recorded.lastUnblockAt,
+        unblockCountByDate: recorded.unblockCountByDate,
+      });
+      tracker.cooldownUntil = untilMs;
+      if (senderTabId !== null) {
+        await sendToTab(senderTabId, {
+          type: "ad/time-limit/cooldown-active",
+          untilMs,
+        });
+        await sendToTab(senderTabId, { type: "ad/time-limit/unblock" });
+      }
+      return { ok: true, untilMs };
+    } finally {
+      tracker.unblockInFlight = false;
+    }
+  } catch {
+    return { ok: false, reason: "storage-error" };
   }
 }
 
@@ -236,6 +399,7 @@ chrome.runtime.onInstalled.addListener(async () => {
   scheduleTimeLimitTick();
   scheduleStatsCleanup();
   setIdleDetection();
+  await restoreCooldownFromStorage();
   await refreshActiveTab();
   await runCleanupIfNeeded();
 });
@@ -245,8 +409,38 @@ chrome.runtime.onStartup.addListener(async () => {
   scheduleTimeLimitTick();
   scheduleStatsCleanup();
   setIdleDetection();
+  await restoreCooldownFromStorage();
   await refreshActiveTab();
   await runCleanupIfNeeded();
+});
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (!message || typeof message !== "object") return false;
+  const type = (message as { type?: unknown }).type;
+  if (type !== "ad/time-limit/request-unblock") return false;
+  const tabId = sender.tab?.id ?? null;
+  const resolveTabId = async (): Promise<number | null> => {
+    if (tabId !== null) return tabId;
+    try {
+      const [tab] = await chrome.tabs.query({
+        active: true,
+        lastFocusedWindow: true,
+      });
+      return tab?.id ?? null;
+    } catch {
+      return null;
+    }
+  };
+  void (async () => {
+    const targetTabId = await resolveTabId();
+    const res = await onRequestUnblock(targetTabId);
+    try {
+      sendResponse(res);
+    } catch {
+      /* ignore */
+    }
+  })();
+  return true;
 });
 
 chrome.alarms.onAlarm.addListener((alarm) => {

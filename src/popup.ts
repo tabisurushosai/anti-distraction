@@ -10,6 +10,7 @@ type PopupState = {
   dailyLimitMinutes: number;
   cooldownSeconds: number;
   usageByDate: Record<string, number>;
+  lastUnblockAt: number | null;
 };
 
 const STORAGE_KEYS = {
@@ -17,6 +18,7 @@ const STORAGE_KEYS = {
   dailyLimitMinutes: "dailyLimitMinutes",
   cooldownSeconds: "cooldownSeconds",
   usageByDate: "usageByDate",
+  lastUnblockAt: "lastUnblockAt",
 } as const;
 
 const DEFAULTS: PopupState = {
@@ -24,6 +26,7 @@ const DEFAULTS: PopupState = {
   dailyLimitMinutes: 30,
   cooldownSeconds: 30,
   usageByDate: {},
+  lastUnblockAt: null,
 };
 
 const RECENT_DAYS = 7;
@@ -56,6 +59,8 @@ async function loadState(): Promise<PopupState> {
       data.usageByDate && typeof data.usageByDate === "object"
         ? (data.usageByDate as Record<string, number>)
         : DEFAULTS.usageByDate,
+    lastUnblockAt:
+      typeof data.lastUnblockAt === "number" ? data.lastUnblockAt : null,
   };
 }
 
@@ -127,6 +132,7 @@ function render(state: PopupState): void {
   renderToggleButton(state);
   renderTodaySummary(state);
   renderRecentBars(state);
+  renderCooldownBadge(state);
 }
 
 async function handleToggle(): Promise<void> {
@@ -135,25 +141,93 @@ async function handleToggle(): Promise<void> {
   await chrome.storage.local.set({ [STORAGE_KEYS.enabled]: next });
 }
 
-function startCooldown(seconds: number, textEl: HTMLElement, button: HTMLButtonElement): void {
-  let remaining = seconds;
+let cooldownTimer: number | null = null;
+
+function stopCooldownDisplay(): void {
+  if (cooldownTimer !== null) {
+    window.clearInterval(cooldownTimer);
+    cooldownTimer = null;
+  }
+}
+
+function runCooldownDisplay(untilMs: number, textEl: HTMLElement, button: HTMLButtonElement): void {
+  stopCooldownDisplay();
   textEl.hidden = false;
   button.disabled = true;
   const tick = (): void => {
+    const remaining = Math.max(0, Math.ceil((untilMs - Date.now()) / 1000));
     if (remaining <= 0) {
+      stopCooldownDisplay();
       textEl.hidden = true;
       textEl.textContent = "";
       button.disabled = false;
       return;
     }
     textEl.textContent = t("popup_cooldown_active", String(remaining));
-    remaining -= 1;
-    window.setTimeout(tick, 1000);
   };
   tick();
+  cooldownTimer = window.setInterval(tick, 500);
 }
 
-function bindEvents(state: PopupState): void {
+function renderCooldownBadge(state: PopupState): void {
+  const textEl = document.getElementById("cooldown-text") as HTMLElement | null;
+  const button = document.getElementById("unblock-btn") as HTMLButtonElement | null;
+  if (!textEl || !button) return;
+  if (state.lastUnblockAt === null) {
+    stopCooldownDisplay();
+    textEl.hidden = true;
+    textEl.textContent = "";
+    button.disabled = false;
+    return;
+  }
+  const untilMs = state.lastUnblockAt + state.cooldownSeconds * 1000;
+  if (untilMs <= Date.now()) {
+    stopCooldownDisplay();
+    textEl.hidden = true;
+    textEl.textContent = "";
+    button.disabled = false;
+    return;
+  }
+  runCooldownDisplay(untilMs, textEl, button);
+}
+
+const DENIED_KEYS: Record<string, string> = {
+  "rate-limit": "cooldown_denied_rate_limit",
+  disabled: "cooldown_denied_disabled",
+  "not-blocked": "cooldown_denied_not_blocked",
+  "premium-required": "cooldown_denied_premium_required",
+  "storage-error": "cooldown_denied_storage",
+};
+
+function showInlineDenied(textEl: HTMLElement, reason: string): void {
+  stopCooldownDisplay();
+  const key = DENIED_KEYS[reason] ?? DENIED_KEYS["rate-limit"];
+  textEl.textContent = t(key as Parameters<typeof t>[0]);
+  textEl.hidden = false;
+}
+
+async function handleUnblockClick(
+  button: HTMLButtonElement,
+  textEl: HTMLElement,
+): Promise<void> {
+  button.disabled = true;
+  try {
+    const res = (await chrome.runtime.sendMessage({
+      type: "ad/time-limit/request-unblock",
+    })) as { ok?: boolean; untilMs?: number; reason?: string } | undefined;
+    if (res && res.ok && typeof res.untilMs === "number") {
+      runCooldownDisplay(res.untilMs, textEl, button);
+    } else {
+      showInlineDenied(textEl, res?.reason ?? "rate-limit");
+      button.disabled = false;
+    }
+  } catch {
+    showInlineDenied(textEl, "storage-error");
+    button.disabled = false;
+  }
+}
+
+function bindEvents(_state: PopupState): void {
   const toggleBtn = document.getElementById("toggle-btn") as HTMLButtonElement | null;
   toggleBtn?.addEventListener("click", () => {
     void handleToggle();
@@ -163,7 +237,7 @@ function bindEvents(state: PopupState): void {
   const cooldownText = document.getElementById("cooldown-text") as HTMLElement | null;
   if (unblockBtn && cooldownText) {
     unblockBtn.addEventListener("click", () => {
-      startCooldown(state.cooldownSeconds, cooldownText, unblockBtn);
+      void handleUnblockClick(unblockBtn, cooldownText);
     });
   }
 
