@@ -1,25 +1,8 @@
 import { getValues, onStorageChanged } from "./storage";
+import { hostMatches } from "./lib/host-match";
 
 const STYLE_ID = "anti-distraction-style";
 const ROOT_ATTR = "data-anti-distraction";
-
-function normalizeHost(input: string): string {
-  let v = input.trim().toLowerCase();
-  if (v.endsWith(".")) v = v.slice(0, -1);
-  if (v.startsWith("www.")) v = v.slice(4);
-  return v;
-}
-
-function hostMatches(currentHost: string, sites: readonly string[]): boolean {
-  const host = normalizeHost(currentHost);
-  for (const raw of sites) {
-    const site = normalizeHost(raw);
-    if (!site) continue;
-    if (host === site) return true;
-    if (host.endsWith("." + site)) return true;
-  }
-  return false;
-}
 
 function ensureStyleEl(): HTMLStyleElement {
   let el = document.getElementById(STYLE_ID) as HTMLStyleElement | null;
