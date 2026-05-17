@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import {
   TRIAL_DAYS,
   isPremiumEffective,
+  isPremiumPurchased,
+  isTrialActive,
   trialDaysLeft,
 } from "../src/lib/premium-status.ts";
 
@@ -121,5 +123,61 @@ test("trialDaysLeft: non-finite trial_start_ts returns TRIAL_DAYS", () => {
   assert.equal(
     trialDaysLeft({ premium_unlocked: false, trial_start_ts: Infinity }, NOW),
     TRIAL_DAYS,
+  );
+});
+
+// ---------- isPremiumPurchased ----------
+
+test("isPremiumPurchased: true only when premium_unlocked=true", () => {
+  assert.equal(
+    isPremiumPurchased({ premium_unlocked: true, trial_start_ts: null }),
+    true,
+  );
+  assert.equal(
+    isPremiumPurchased({ premium_unlocked: false, trial_start_ts: NOW }),
+    false,
+  );
+});
+
+// ---------- isTrialActive ----------
+
+test("isTrialActive: true within TRIAL_DAYS, ignoring premium_unlocked", () => {
+  const start = NOW - 3 * DAY_MS;
+  assert.equal(
+    isTrialActive({ premium_unlocked: false, trial_start_ts: start }, NOW),
+    true,
+  );
+  assert.equal(
+    isTrialActive({ premium_unlocked: true, trial_start_ts: start }, NOW),
+    true,
+  );
+});
+
+test("isTrialActive: false at exact TRIAL_DAYS boundary and beyond", () => {
+  const boundary = NOW - TRIAL_DAYS * DAY_MS;
+  assert.equal(
+    isTrialActive({ premium_unlocked: false, trial_start_ts: boundary }, NOW),
+    false,
+  );
+});
+
+test("isTrialActive: false for null or non-finite trial_start_ts", () => {
+  assert.equal(
+    isTrialActive({ premium_unlocked: false, trial_start_ts: null }, NOW),
+    false,
+  );
+  assert.equal(
+    isTrialActive({ premium_unlocked: false, trial_start_ts: NaN }, NOW),
+    false,
+  );
+});
+
+test("isTrialActive: false when trial_start_ts is in the future", () => {
+  assert.equal(
+    isTrialActive(
+      { premium_unlocked: false, trial_start_ts: NOW + 1 * DAY_MS },
+      NOW,
+    ),
+    false,
   );
 });

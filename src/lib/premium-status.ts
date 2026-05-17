@@ -6,13 +6,21 @@ export type PremiumState = {
 export const TRIAL_DAYS = 7;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-export function isPremiumEffective(state: PremiumState, now: number = Date.now()): boolean {
-  if (state.premium_unlocked === true) return true;
-  if (typeof state.trial_start_ts === "number" && Number.isFinite(state.trial_start_ts)) {
-    const elapsed = now - state.trial_start_ts;
-    if (elapsed >= 0 && elapsed < TRIAL_DAYS * DAY_MS) return true;
+export function isPremiumPurchased(state: PremiumState): boolean {
+  return state.premium_unlocked === true;
+}
+
+export function isTrialActive(state: PremiumState, now: number = Date.now()): boolean {
+  if (typeof state.trial_start_ts !== "number" || !Number.isFinite(state.trial_start_ts)) {
+    return false;
   }
-  return false;
+  const elapsed = now - state.trial_start_ts;
+  return elapsed >= 0 && elapsed < TRIAL_DAYS * DAY_MS;
+}
+
+export function isPremiumEffective(state: PremiumState, now: number = Date.now()): boolean {
+  if (isPremiumPurchased(state)) return true;
+  return isTrialActive(state, now);
 }
 
 export function trialDaysLeft(state: PremiumState, now: number = Date.now()): number | null {
