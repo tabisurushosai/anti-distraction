@@ -369,6 +369,41 @@ body {
   display: none !important;
 }
 
+.options__premium-note {
+  margin: 0;
+  font-size: 12px;
+  color: var(--fg-muted);
+}
+
+.options__license {
+  gap: 6px;
+}
+
+.options__license-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.options__license-row .options__input {
+  flex: 1 1 200px;
+  max-width: 360px;
+}
+
+.options__license-status {
+  margin: 0;
+  font-size: 12px;
+}
+
+.options__license-status--ok {
+  color: var(--ok-fg);
+}
+
+.options__license-status--error {
+  color: var(--danger);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .options__btn {
     transition: none;

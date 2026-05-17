@@ -65,7 +65,14 @@ export type MessageKey =
   | "cooldown_denied_premium_required"
   | "cooldown_denied_storage"
   | "options_cooldown_note"
-  | "options_cooldown_used_today";
+  | "options_cooldown_used_today"
+  | "options_premium_note"
+  | "options_license_label"
+  | "options_license_placeholder"
+  | "options_license_apply"
+  | "options_license_invalid"
+  | "options_license_applied"
+  | "options_license_storage_error";
 
 export function t(key: MessageKey, substitutions?: string | string[]): string {
   const msg = chrome.i18n.getMessage(key, substitutions);

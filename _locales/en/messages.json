@@ -342,5 +342,33 @@
         "example": "3"
       }
     }
+  },
+  "options_premium_note": {
+    "message": "Payment is processed via Stripe Checkout. Premium unlocks automatically after purchase.",
+    "description": "Premium purchase note"
+  },
+  "options_license_label": {
+    "message": "License code",
+    "description": "License code input label"
+  },
+  "options_license_placeholder": {
+    "message": "Enter the code from your receipt email",
+    "description": "License code input placeholder"
+  },
+  "options_license_apply": {
+    "message": "Apply code",
+    "description": "Apply license code button"
+  },
+  "options_license_invalid": {
+    "message": "The code format is invalid.",
+    "description": "License code format error"
+  },
+  "options_license_applied": {
+    "message": "Premium is now active.",
+    "description": "License code applied successfully"
+  },
+  "options_license_storage_error": {
+    "message": "Failed to save. Please try again.",
+    "description": "Storage failure on applying license"
   }
 }

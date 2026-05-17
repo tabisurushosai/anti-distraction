@@ -27,6 +27,7 @@ import {
   type CooldownResponse,
 } from "./lib/cooldown";
 import { isPremiumEffective } from "./lib/premium-status";
+import { handleReturnUrl } from "./upgrade";
 
 const DAILY_RESET_ALARM = "daily-reset";
 const TIME_LIMIT_ALARM = "time-limit-tick";
@@ -468,6 +469,18 @@ chrome.tabs.onActivated.addListener(async (info) => {
 });
 
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+  const candidateUrl = changeInfo.url ?? tab.url;
+  if (typeof candidateUrl === "string" && candidateUrl.length > 0) {
+    const res = await handleReturnUrl(candidateUrl);
+    if (res.ok) {
+      try {
+        await chrome.tabs.remove(tabId);
+      } catch {
+        /* tab may already be gone */
+      }
+      return;
+    }
+  }
   if (!tab.active) return;
   if (changeInfo.status !== "complete" && changeInfo.url === undefined) return;
   if (tabId !== tracker.activeTabId && !tab.active) return;

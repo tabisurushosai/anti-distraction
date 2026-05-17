@@ -18,6 +18,7 @@ import {
   usedToday,
   dailyMax,
 } from "./lib/cooldown";
+import { applyLicenseCode, startCheckout } from "./upgrade";
 
 type OptionsState = {
   sites: string[];
@@ -554,9 +555,55 @@ function bindEvents(): void {
     renderCooldownSection();
   });
 
-  const upgradeBtn = document.getElementById("upgrade-btn");
+  const upgradeBtn = document.getElementById("upgrade-btn") as HTMLButtonElement | null;
   upgradeBtn?.addEventListener("click", () => {
-    // Stripe Checkout integration is wired up in a later task (T033).
+    if (view.premiumUnlocked) return;
+    upgradeBtn.disabled = true;
+    void startCheckout()
+      .catch(() => {
+        /* opening the tab failed; let the user retry */
+      })
+      .finally(() => {
+        upgradeBtn.disabled = view.premiumUnlocked;
+      });
+  });
+
+  const licenseInput = document.getElementById("license-input") as HTMLInputElement | null;
+  const applyLicenseBtn = document.getElementById(
+    "apply-license-btn",
+  ) as HTMLButtonElement | null;
+  const licenseStatus = document.getElementById("license-status");
+  const showLicenseStatus = (
+    key:
+      | "options_license_invalid"
+      | "options_license_applied"
+      | "options_license_storage_error",
+    kind: "ok" | "error",
+  ): void => {
+    if (!licenseStatus) return;
+    licenseStatus.textContent = t(key);
+    licenseStatus.hidden = false;
+    licenseStatus.classList.toggle("options__license-status--ok", kind === "ok");
+    licenseStatus.classList.toggle("options__license-status--error", kind === "error");
+  };
+  applyLicenseBtn?.addEventListener("click", () => {
+    if (!licenseInput) return;
+    const code = licenseInput.value;
+    applyLicenseBtn.disabled = true;
+    void applyLicenseCode(code)
+      .then((res) => {
+        if (res.ok) {
+          showLicenseStatus("options_license_applied", "ok");
+          licenseInput.value = "";
+        } else if (res.reason === "storage-error") {
+          showLicenseStatus("options_license_storage_error", "error");
+        } else {
+          showLicenseStatus("options_license_invalid", "error");
+        }
+      })
+      .finally(() => {
+        applyLicenseBtn.disabled = false;
+      });
   });
 }
 

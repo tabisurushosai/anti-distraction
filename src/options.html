@@ -194,6 +194,40 @@
           class="options__btn options__btn--secondary"
           data-i18n="options_upgrade_premium"
         >Premium にアップグレード ($3)</button>
+        <p
+          id="premium-note"
+          class="options__premium-note"
+          data-i18n="options_premium_note"
+        >決済は Stripe Checkout で処理されます。購入完了後に自動でロック解除されます。</p>
+        <div class="options__field options__license">
+          <label for="license-input" data-i18n="options_license_label">
+            ライセンスコード
+          </label>
+          <div class="options__license-row">
+            <input
+              id="license-input"
+              type="text"
+              class="options__input"
+              data-i18n-placeholder="options_license_placeholder"
+              placeholder="領収メールに記載されたコードを入力"
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <button
+              id="apply-license-btn"
+              type="button"
+              class="options__btn options__btn--secondary"
+              data-i18n="options_license_apply"
+            >コードを適用</button>
+          </div>
+          <p
+            id="license-status"
+            class="options__license-status"
+            role="status"
+            aria-live="polite"
+            hidden
+          ></p>
+        </div>
       </section>
 
       <div class="options__actions">

@@ -342,5 +342,33 @@
         "example": "3"
       }
     }
+  },
+  "options_premium_note": {
+    "message": "決済は Stripe Checkout で処理されます。購入完了後に自動でロック解除されます。",
+    "description": "Premium 購入ノート"
+  },
+  "options_license_label": {
+    "message": "ライセンスコード",
+    "description": "ライセンスコード入力ラベル"
+  },
+  "options_license_placeholder": {
+    "message": "領収メールに記載されたコードを入力",
+    "description": "ライセンスコード入力プレースホルダ"
+  },
+  "options_license_apply": {
+    "message": "コードを適用",
+    "description": "ライセンスコード適用ボタン"
+  },
+  "options_license_invalid": {
+    "message": "コードの形式が正しくありません。",
+    "description": "ライセンスコード形式エラー"
+  },
+  "options_license_applied": {
+    "message": "Premium を有効化しました。",
+    "description": "ライセンスコード適用成功"
+  },
+  "options_license_storage_error": {
+    "message": "保存に失敗しました。もう一度お試しください。",
+    "description": "ライセンスコード適用時のストレージ失敗"
   }
 }
