@@ -34,7 +34,7 @@
 - [x] T027: daily-stats — テスト・整合
 - [x] T028: unblock-cooldown — 設計
 - [x] T029: unblock-cooldown — 実装
-- [ ] T030: unblock-cooldown — テスト・整合
+- [x] T030: unblock-cooldown — テスト・整合
 
 ## Phase 4: Premium ゲート (T031-T033)
 - [ ] T031: src/premium.ts (trial_start_ts 管理、is_premium / is_trial 判定関数)
