@@ -441,8 +441,9 @@ function renderStats(): void {
 }
 
 function scrollToStatsIfRequested(): void {
-  if (window.location.hash !== "#stats") return;
-  const target = document.getElementById("stats");
+  const hash = window.location.hash;
+  if (hash !== "#stats" && hash !== "#premium") return;
+  const target = document.getElementById(hash.slice(1));
   if (target) target.scrollIntoView({ behavior: "auto", block: "start" });
 }
 

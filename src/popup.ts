@@ -4,6 +4,12 @@ import {
   summarizeUsage,
   type UsageSummary,
 } from "./lib/usage-stats";
+import {
+  isPremiumEffective,
+  isPremiumPurchased,
+  isTrialActive,
+  trialDaysLeft,
+} from "./lib/premium-status";
 
 type PopupState = {
   enabled: boolean;
@@ -11,6 +17,8 @@ type PopupState = {
   cooldownSeconds: number;
   usageByDate: Record<string, number>;
   lastUnblockAt: number | null;
+  premiumUnlocked: boolean;
+  trialStartTs: number | null;
 };
 
 const STORAGE_KEYS = {
@@ -19,6 +27,8 @@ const STORAGE_KEYS = {
   cooldownSeconds: "cooldownSeconds",
   usageByDate: "usageByDate",
   lastUnblockAt: "lastUnblockAt",
+  premiumUnlocked: "premium_unlocked",
+  trialStartTs: "trial_start_ts",
 } as const;
 
 const DEFAULTS: PopupState = {
@@ -27,6 +37,8 @@ const DEFAULTS: PopupState = {
   cooldownSeconds: 30,
   usageByDate: {},
   lastUnblockAt: null,
+  premiumUnlocked: false,
+  trialStartTs: null,
 };
 
 const RECENT_DAYS = 7;
@@ -61,6 +73,19 @@ async function loadState(): Promise<PopupState> {
         : DEFAULTS.usageByDate,
     lastUnblockAt:
       typeof data.lastUnblockAt === "number" ? data.lastUnblockAt : null,
+    premiumUnlocked: data.premium_unlocked === true,
+    trialStartTs:
+      typeof data.trial_start_ts === "number" ? data.trial_start_ts : null,
+  };
+}
+
+function premiumStateOf(state: PopupState): {
+  premium_unlocked: boolean;
+  trial_start_ts: number | null;
+} {
+  return {
+    premium_unlocked: state.premiumUnlocked,
+    trial_start_ts: state.trialStartTs,
   };
 }
 
@@ -127,12 +152,43 @@ function renderRecentBars(state: PopupState): void {
   }
 }
 
+function renderPremium(state: PopupState): void {
+  const section = document.getElementById("premium-section");
+  const statusText = document.getElementById("premium-status-text");
+  const hint = document.getElementById("premium-hint");
+  const upgradeBtn = document.getElementById(
+    "popup-upgrade-btn",
+  ) as HTMLButtonElement | null;
+  if (!section || !statusText || !hint || !upgradeBtn) return;
+
+  const ps = premiumStateOf(state);
+  const now = Date.now();
+  const purchased = isPremiumPurchased(ps);
+  const trial = isTrialActive(ps, now);
+  const effective = isPremiumEffective(ps, now);
+
+  section.classList.toggle("popup__premium--active", effective);
+
+  if (purchased) {
+    statusText.textContent = t("popup_premium_active");
+  } else if (trial) {
+    const days = trialDaysLeft(ps, now) ?? 0;
+    statusText.textContent = t("popup_premium_trial", String(days));
+  } else {
+    statusText.textContent = t("popup_premium_free");
+  }
+
+  hint.hidden = effective;
+  upgradeBtn.hidden = purchased;
+}
+
 function render(state: PopupState): void {
   renderStatus(state);
   renderToggleButton(state);
   renderTodaySummary(state);
   renderRecentBars(state);
   renderCooldownBadge(state);
+  renderPremium(state);
 }
 
 async function handleToggle(): Promise<void> {
@@ -261,6 +317,18 @@ function bindEvents(_state: PopupState): void {
 
   const statsBtn = document.getElementById("open-stats-btn");
   statsBtn?.addEventListener("click", openStats);
+
+  const upgradeBtn = document.getElementById(
+    "popup-upgrade-btn",
+  ) as HTMLButtonElement | null;
+  upgradeBtn?.addEventListener("click", () => {
+    try {
+      const url = chrome.runtime.getURL("src/options.html#premium");
+      void chrome.tabs.create({ url });
+    } catch {
+      openOptions();
+    }
+  });
 }
 
 function watchStorage(): void {

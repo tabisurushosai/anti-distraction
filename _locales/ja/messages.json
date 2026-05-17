@@ -67,6 +67,32 @@
       }
     }
   },
+  "popup_premium_active": {
+    "message": "Premium 有効",
+    "description": "ポップアップ: Premium 有効"
+  },
+  "popup_premium_trial": {
+    "message": "お試し残り $DAYS$ 日",
+    "description": "ポップアップ: お試し残日数",
+    "placeholders": {
+      "days": {
+        "content": "$1",
+        "example": "5"
+      }
+    }
+  },
+  "popup_premium_free": {
+    "message": "無料プラン",
+    "description": "ポップアップ: 無料プラン表示"
+  },
+  "popup_upgrade": {
+    "message": "Premium にアップグレード",
+    "description": "ポップアップ: アップグレードボタン"
+  },
+  "popup_premium_locked_stats": {
+    "message": "Premium で詳細統計と無制限の対象サイトを開放",
+    "description": "ポップアップ: Premium 解放範囲の説明"
+  },
   "options_title": {
     "message": "脱注意散漫 設定",
     "description": "設定画面のタイトル"

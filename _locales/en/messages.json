@@ -67,6 +67,32 @@
       }
     }
   },
+  "popup_premium_active": {
+    "message": "Premium active",
+    "description": "Popup: premium active"
+  },
+  "popup_premium_trial": {
+    "message": "Trial: $DAYS$ days left",
+    "description": "Popup: trial days remaining",
+    "placeholders": {
+      "days": {
+        "content": "$1",
+        "example": "5"
+      }
+    }
+  },
+  "popup_premium_free": {
+    "message": "Free plan",
+    "description": "Popup: free plan label"
+  },
+  "popup_upgrade": {
+    "message": "Upgrade to Premium",
+    "description": "Popup: upgrade button"
+  },
+  "popup_premium_locked_stats": {
+    "message": "Premium unlocks detailed stats and unlimited sites",
+    "description": "Popup: premium unlock summary"
+  },
   "options_title": {
     "message": "Anti-Distraction Settings",
     "description": "Settings page title"
