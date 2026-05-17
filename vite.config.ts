@@ -1,5 +1,4 @@
 import { defineConfig } from 'vite';
-import { resolve } from 'node:path';
 
 export default defineConfig({
   root: '.',
@@ -12,10 +11,10 @@ export default defineConfig({
     minify: false,
     rollupOptions: {
       input: {
-        popup: resolve(__dirname, 'src/popup.html'),
-        options: resolve(__dirname, 'src/options.html'),
-        background: resolve(__dirname, 'src/background.ts'),
-        content: resolve(__dirname, 'src/content.ts'),
+        popup: 'src/popup.html',
+        options: 'src/options.html',
+        background: 'src/background.ts',
+        content: 'src/content.ts',
       },
       output: {
         entryFileNames: (chunkInfo) => {

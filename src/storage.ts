@@ -176,7 +176,7 @@ export function onStorageChanged(listener: StorageChangeListener): () => void {
     for (const k of Object.keys(changes) as StorageKey[]) {
       if (!(k in DEFAULTS)) continue;
       const change = changes[k];
-      typed[k] = {
+      (typed as Record<string, unknown>)[k] = {
         key: k,
         oldValue:
           change.oldValue === undefined
@@ -186,7 +186,7 @@ export function onStorageChanged(listener: StorageChangeListener): () => void {
           change.newValue === undefined
             ? undefined
             : coerce(k, change.newValue),
-      } as TypedChange<typeof k>;
+      };
     }
     if (Object.keys(typed).length > 0) listener(typed);
   };
