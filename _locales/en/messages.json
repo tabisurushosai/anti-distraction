@@ -374,5 +374,33 @@
   "aria_new_site_input": {
     "message": "Target site hostname",
     "description": "ARIA label for the new-site host input"
+  },
+  "options_section_backup": {
+    "message": "Backup",
+    "description": "Settings export/import section"
+  },
+  "options_backup_note": {
+    "message": "Save sites, limits, appearance, and cooldown settings as a JSON file. Usage history and premium info are not exported.",
+    "description": "Backup section note"
+  },
+  "options_backup_export": {
+    "message": "Export",
+    "description": "Export settings button"
+  },
+  "options_backup_import": {
+    "message": "Import",
+    "description": "Import settings button"
+  },
+  "options_backup_export_done": {
+    "message": "Settings exported.",
+    "description": "Export completion message"
+  },
+  "options_backup_import_done": {
+    "message": "Settings imported.",
+    "description": "Import completion message"
+  },
+  "options_backup_import_invalid": {
+    "message": "The file format is invalid.",
+    "description": "Import failure (parse/validation error)"
   }
 }

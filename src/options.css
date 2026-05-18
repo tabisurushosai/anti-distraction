@@ -442,6 +442,25 @@ body {
   color: var(--danger);
 }
 
+.options__backup-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.options__backup-status {
+  margin: 0;
+  font-size: 12px;
+}
+
+.options__backup-status--ok {
+  color: var(--ok-fg);
+}
+
+.options__backup-status--error {
+  color: var(--danger);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .options__btn {
     transition: none;

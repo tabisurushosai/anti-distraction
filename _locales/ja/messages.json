@@ -374,5 +374,33 @@
   "aria_new_site_input": {
     "message": "対象サイトのホスト名",
     "description": "対象サイト追加用入力欄の ARIA ラベル"
+  },
+  "options_section_backup": {
+    "message": "バックアップ",
+    "description": "設定のエクスポート/インポートセクション"
+  },
+  "options_backup_note": {
+    "message": "対象サイト/上限時間/外観/クールダウン設定を JSON ファイルでバックアップできます。利用履歴と Premium 情報はエクスポートに含まれません。",
+    "description": "バックアップセクションの説明"
+  },
+  "options_backup_export": {
+    "message": "エクスポート",
+    "description": "設定をエクスポートするボタン"
+  },
+  "options_backup_import": {
+    "message": "インポート",
+    "description": "設定をインポートするボタン"
+  },
+  "options_backup_export_done": {
+    "message": "設定を書き出しました。",
+    "description": "エクスポート完了表示"
+  },
+  "options_backup_import_done": {
+    "message": "設定を読み込みました。",
+    "description": "インポート完了表示"
+  },
+  "options_backup_import_invalid": {
+    "message": "ファイルの形式が正しくありません。",
+    "description": "インポート失敗 (パース/検証エラー)"
   }
 }

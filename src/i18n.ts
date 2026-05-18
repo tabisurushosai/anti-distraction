@@ -81,7 +81,14 @@ export type MessageKey =
   | "options_license_invalid"
   | "options_license_applied"
   | "options_license_storage_error"
-  | "aria_new_site_input";
+  | "aria_new_site_input"
+  | "options_section_backup"
+  | "options_backup_note"
+  | "options_backup_export"
+  | "options_backup_import"
+  | "options_backup_export_done"
+  | "options_backup_import_done"
+  | "options_backup_import_invalid";
 
 /**
  * Looks up `key` in the active locale's messages. When a translation is

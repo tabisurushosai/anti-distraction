@@ -239,6 +239,47 @@
         </div>
       </section>
 
+      <section class="options__section" aria-labelledby="backup-heading">
+        <h2
+          id="backup-heading"
+          class="options__section-title"
+          data-i18n="options_section_backup"
+        >バックアップ</h2>
+        <p
+          class="options__premium-note"
+          data-i18n="options_backup_note"
+        >対象サイト/上限時間/外観/クールダウン設定を JSON ファイルでバックアップできます。利用履歴と Premium 情報はエクスポートに含まれません。</p>
+        <div class="options__backup-actions">
+          <button
+            id="export-btn"
+            type="button"
+            class="options__btn options__btn--secondary"
+            data-i18n="options_backup_export"
+            data-i18n-aria-label="options_backup_export"
+          >エクスポート</button>
+          <button
+            id="import-btn"
+            type="button"
+            class="options__btn options__btn--secondary"
+            data-i18n="options_backup_import"
+            data-i18n-aria-label="options_backup_import"
+          >インポート</button>
+          <input
+            id="import-file"
+            type="file"
+            accept="application/json,.json"
+            hidden
+          />
+        </div>
+        <p
+          id="backup-status"
+          class="options__backup-status"
+          role="status"
+          aria-live="polite"
+          hidden
+        ></p>
+      </section>
+
       <div class="options__actions">
         <button
           id="save-btn"

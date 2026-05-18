@@ -626,6 +626,109 @@ function bindEvents(): void {
     }
   });
 
+  const exportBtn = document.getElementById("export-btn") as HTMLButtonElement | null;
+  const importBtn = document.getElementById("import-btn") as HTMLButtonElement | null;
+  const importFile = document.getElementById("import-file") as HTMLInputElement | null;
+  const backupStatus = document.getElementById("backup-status");
+  const showBackupStatus = (
+    key:
+      | "options_backup_export_done"
+      | "options_backup_import_done"
+      | "options_backup_import_invalid",
+    kind: "ok" | "error",
+  ): void => {
+    if (!backupStatus) return;
+    backupStatus.textContent = t(key);
+    backupStatus.hidden = false;
+    backupStatus.classList.toggle("options__backup-status--ok", kind === "ok");
+    backupStatus.classList.toggle("options__backup-status--error", kind === "error");
+  };
+  exportBtn?.addEventListener("click", () => {
+    const payload = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      settings: {
+        sites: view.sites,
+        dailyLimitMinutes: view.dailyLimitMinutes,
+        sessionLimitMinutes: view.sessionLimitMinutes,
+        grayIntensity: view.grayIntensity,
+        cooldownSeconds: view.cooldownSeconds,
+      },
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `anti-distraction-settings-${todayKeyLocal()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showBackupStatus("options_backup_export_done", "ok");
+  });
+  importBtn?.addEventListener("click", () => importFile?.click());
+  importFile?.addEventListener("change", () => {
+    const file = importFile.files?.[0];
+    if (!file) return;
+    file
+      .text()
+      .then((text) => {
+        const parsed: unknown = JSON.parse(text);
+        if (!parsed || typeof parsed !== "object") throw new Error("invalid");
+        const root = parsed as Record<string, unknown>;
+        const s = (root.settings ?? root) as Record<string, unknown>;
+        if (!s || typeof s !== "object") throw new Error("invalid");
+
+        const next: Partial<OptionsState> = {};
+        if (
+          Array.isArray(s.sites) &&
+          s.sites.every((v) => typeof v === "string")
+        ) {
+          const normalized: string[] = [];
+          for (const raw of s.sites as string[]) {
+            const host = normalizeHost(raw);
+            if (host && !normalized.includes(host)) normalized.push(host);
+          }
+          next.sites = normalized;
+        }
+        if (typeof s.dailyLimitMinutes === "number") {
+          next.dailyLimitMinutes = clampInt(s.dailyLimitMinutes, 0, 24 * 60);
+        }
+        if (typeof s.sessionLimitMinutes === "number") {
+          next.sessionLimitMinutes = clampInt(s.sessionLimitMinutes, 0, 24 * 60);
+        }
+        if (typeof s.grayIntensity === "number") {
+          next.grayIntensity = clampInt(s.grayIntensity, 0, 100);
+        }
+        if (typeof s.cooldownSeconds === "number") {
+          next.cooldownSeconds = clampInt(
+            s.cooldownSeconds,
+            COOLDOWN_MIN_SECONDS,
+            COOLDOWN_MAX_SECONDS,
+          );
+        }
+        if (Object.keys(next).length === 0) throw new Error("invalid");
+
+        Object.assign(view, next);
+        return saveState(view).then(() => {
+          renderSites();
+          renderInputs();
+          renderSiteLimit();
+          renderCooldownSection();
+          renderStats();
+          showBackupStatus("options_backup_import_done", "ok");
+        });
+      })
+      .catch(() => {
+        showBackupStatus("options_backup_import_invalid", "error");
+      })
+      .finally(() => {
+        importFile.value = "";
+      });
+  });
+
   const triggerSaveOnEnter = (e: KeyboardEvent): void => {
     if (e.key !== "Enter") return;
     e.preventDefault();
