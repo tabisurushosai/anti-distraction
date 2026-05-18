@@ -109,7 +109,9 @@ function renderStatus(state: PopupState): void {
 function renderToggleButton(state: PopupState): void {
   const btn = document.getElementById("toggle-btn");
   if (!btn) return;
-  btn.textContent = state.enabled ? t("popup_toggle_off") : t("popup_toggle_on");
+  const label = state.enabled ? t("popup_toggle_off") : t("popup_toggle_on");
+  btn.textContent = label;
+  btn.setAttribute("aria-label", label);
 }
 
 function renderTodaySummary(state: PopupState): void {
