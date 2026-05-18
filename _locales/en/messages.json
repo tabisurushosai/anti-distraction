@@ -257,10 +257,6 @@
     "message": "Premium unlocks 30-day history and streaks",
     "description": "Premium gate explanation"
   },
-  "blocked_message": {
-    "message": "You've reached today's limit. Try again tomorrow.",
-    "description": "Block screen message"
-  },
   "overlay_blocked_title": {
     "message": "Time limit reached",
     "description": "Overlay title"

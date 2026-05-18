@@ -257,10 +257,6 @@
     "message": "Premium で 30 日間の履歴と連続達成日数を表示",
     "description": "Premium ゲート説明"
   },
-  "blocked_message": {
-    "message": "本日の上限に達しました。明日まで待ちましょう。",
-    "description": "ブロック画面のメッセージ"
-  },
   "overlay_blocked_title": {
     "message": "時間制限に達しました",
     "description": "オーバーレイのタイトル"

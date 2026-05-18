@@ -60,7 +60,6 @@ export type MessageKey =
   | "stats_no_data"
   | "stats_limit_note"
   | "stats_premium_required"
-  | "blocked_message"
   | "overlay_blocked_title"
   | "overlay_blocked_reason_daily"
   | "overlay_blocked_reason_session"
