@@ -370,5 +370,9 @@
   "options_license_storage_error": {
     "message": "Failed to save. Please try again.",
     "description": "Storage failure on applying license"
+  },
+  "aria_new_site_input": {
+    "message": "Target site hostname",
+    "description": "ARIA label for the new-site host input"
   }
 }

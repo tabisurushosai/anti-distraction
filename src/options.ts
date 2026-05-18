@@ -599,8 +599,8 @@ function bindEvents(): void {
     licenseStatus.classList.toggle("options__license-status--ok", kind === "ok");
     licenseStatus.classList.toggle("options__license-status--error", kind === "error");
   };
-  applyLicenseBtn?.addEventListener("click", () => {
-    if (!licenseInput) return;
+  const applyLicense = (): void => {
+    if (!licenseInput || !applyLicenseBtn) return;
     const code = licenseInput.value;
     applyLicenseBtn.disabled = true;
     void applyLicenseCode(code)
@@ -617,7 +617,23 @@ function bindEvents(): void {
       .finally(() => {
         applyLicenseBtn.disabled = false;
       });
+  };
+  applyLicenseBtn?.addEventListener("click", applyLicense);
+  licenseInput?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      applyLicense();
+    }
   });
+
+  const triggerSaveOnEnter = (e: KeyboardEvent): void => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    void saveState(view).then(flashSaved);
+  };
+  dailyEl?.addEventListener("keydown", triggerSaveOnEnter);
+  sessionEl?.addEventListener("keydown", triggerSaveOnEnter);
+  cooldownEl?.addEventListener("keydown", triggerSaveOnEnter);
 }
 
 /** Subscribes to storage changes and partially re-renders affected sections. */

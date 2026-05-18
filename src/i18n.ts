@@ -80,7 +80,8 @@ export type MessageKey =
   | "options_license_apply"
   | "options_license_invalid"
   | "options_license_applied"
-  | "options_license_storage_error";
+  | "options_license_storage_error"
+  | "aria_new_site_input";
 
 /**
  * Looks up `key` in the active locale's messages. When a translation is

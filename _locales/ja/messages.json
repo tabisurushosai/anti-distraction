@@ -370,5 +370,9 @@
   "options_license_storage_error": {
     "message": "保存に失敗しました。もう一度お試しください。",
     "description": "ライセンスコード適用時のストレージ失敗"
+  },
+  "aria_new_site_input": {
+    "message": "対象サイトのホスト名",
+    "description": "対象サイト追加用入力欄の ARIA ラベル"
   }
 }
