@@ -94,7 +94,12 @@ function clampInt(value: number, min: number, max: number): number {
 
 /** Reads the entire options view-model from chrome.storage with defaults. */
 async function loadState(): Promise<OptionsState> {
-  const data = await chrome.storage.local.get(Object.values(STORAGE_KEYS));
+  let data: Record<string, unknown> = {};
+  try {
+    data = await chrome.storage.local.get(Object.values(STORAGE_KEYS));
+  } catch {
+    /* fail-safe: storage may be unavailable; fall through to defaults */
+  }
   return {
     sites:
       Array.isArray(data.sites) && data.sites.every((s) => typeof s === "string")

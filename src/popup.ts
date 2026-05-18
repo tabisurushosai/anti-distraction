@@ -63,7 +63,12 @@ function msToMinutes(ms: number): number {
 
 /** Reads the popup's view-model from chrome.storage with permissive defaults. */
 async function loadState(): Promise<PopupState> {
-  const data = await chrome.storage.local.get(Object.values(STORAGE_KEYS));
+  let data: Record<string, unknown> = {};
+  try {
+    data = await chrome.storage.local.get(Object.values(STORAGE_KEYS));
+  } catch {
+    /* fail-safe: fall through to defaults below */
+  }
   return {
     enabled: typeof data.enabled === "boolean" ? data.enabled : DEFAULTS.enabled,
     dailyLimitMinutes:
@@ -203,9 +208,13 @@ function render(state: PopupState): void {
 
 /** Toggles the global `enabled` flag; storage listener re-renders the UI. */
 async function handleToggle(): Promise<void> {
-  const data = await chrome.storage.local.get(STORAGE_KEYS.enabled);
-  const next = !(typeof data.enabled === "boolean" ? data.enabled : true);
-  await chrome.storage.local.set({ [STORAGE_KEYS.enabled]: next });
+  try {
+    const data = await chrome.storage.local.get(STORAGE_KEYS.enabled);
+    const next = !(typeof data.enabled === "boolean" ? data.enabled : true);
+    await chrome.storage.local.set({ [STORAGE_KEYS.enabled]: next });
+  } catch {
+    /* fail-safe: storage may be unavailable; UI listener will not fire */
+  }
 }
 
 let cooldownTimer: number | null = null;

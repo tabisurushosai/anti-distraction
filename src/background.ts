@@ -90,35 +90,51 @@ async function restoreCooldownFromStorage(): Promise<void> {
 
 /** Stamps the trial start timestamp on the very first install. */
 async function initializeTrial(): Promise<void> {
-  const existing = await chrome.storage.local.get(TRIAL_START_KEY);
-  if (existing[TRIAL_START_KEY] === undefined) {
-    await chrome.storage.local.set({ [TRIAL_START_KEY]: Date.now() });
+  try {
+    const existing = await chrome.storage.local.get(TRIAL_START_KEY);
+    if (existing[TRIAL_START_KEY] === undefined) {
+      await chrome.storage.local.set({ [TRIAL_START_KEY]: Date.now() });
+    }
+  } catch {
+    /* fail-safe: storage may be unavailable during install */
   }
 }
 
 /** (Re)creates the alarm that runs every midnight local time. */
 function scheduleDailyReset(): void {
-  const now = new Date();
-  const next = new Date(now);
-  next.setHours(24, 0, 0, 0);
-  chrome.alarms.create(DAILY_RESET_ALARM, {
-    when: next.getTime(),
-    periodInMinutes: 24 * 60,
-  });
+  try {
+    const now = new Date();
+    const next = new Date(now);
+    next.setHours(24, 0, 0, 0);
+    chrome.alarms.create(DAILY_RESET_ALARM, {
+      when: next.getTime(),
+      periodInMinutes: 24 * 60,
+    });
+  } catch {
+    /* fail-safe: alarms API may be unavailable in some contexts */
+  }
 }
 
 /** (Re)creates the high-frequency tick (~15s) that drives session/block evaluation. */
 function scheduleTimeLimitTick(): void {
-  chrome.alarms.create(TIME_LIMIT_ALARM, {
-    periodInMinutes: TIME_LIMIT_PERIOD_MIN,
-  });
+  try {
+    chrome.alarms.create(TIME_LIMIT_ALARM, {
+      periodInMinutes: TIME_LIMIT_PERIOD_MIN,
+    });
+  } catch {
+    /* fail-safe */
+  }
 }
 
 /** (Re)creates the once-per-day alarm that prunes old usage entries. */
 function scheduleStatsCleanup(): void {
-  chrome.alarms.create(DAILY_STATS_CLEANUP_ALARM, {
-    periodInMinutes: 60 * 24,
-  });
+  try {
+    chrome.alarms.create(DAILY_STATS_CLEANUP_ALARM, {
+      periodInMinutes: 60 * 24,
+    });
+  } catch {
+    /* fail-safe */
+  }
 }
 
 /** Drops usage/unblock entries older than `STATS_RETAIN_DAYS`. */
@@ -425,25 +441,33 @@ async function onTick(): Promise<void> {
 }
 
 chrome.runtime.onInstalled.addListener(async () => {
-  await ensureDefaults();
-  await initializeTrial();
-  scheduleDailyReset();
-  scheduleTimeLimitTick();
-  scheduleStatsCleanup();
-  setIdleDetection();
-  await restoreCooldownFromStorage();
-  await refreshActiveTab();
-  await runCleanupIfNeeded();
+  try {
+    await ensureDefaults();
+    await initializeTrial();
+    scheduleDailyReset();
+    scheduleTimeLimitTick();
+    scheduleStatsCleanup();
+    setIdleDetection();
+    await restoreCooldownFromStorage();
+    await refreshActiveTab();
+    await runCleanupIfNeeded();
+  } catch {
+    /* fail-safe: onInstalled must not throw or Chrome may retry indefinitely */
+  }
 });
 
 chrome.runtime.onStartup.addListener(async () => {
-  scheduleDailyReset();
-  scheduleTimeLimitTick();
-  scheduleStatsCleanup();
-  setIdleDetection();
-  await restoreCooldownFromStorage();
-  await refreshActiveTab();
-  await runCleanupIfNeeded();
+  try {
+    scheduleDailyReset();
+    scheduleTimeLimitTick();
+    scheduleStatsCleanup();
+    setIdleDetection();
+    await restoreCooldownFromStorage();
+    await refreshActiveTab();
+    await runCleanupIfNeeded();
+  } catch {
+    /* fail-safe */
+  }
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -476,16 +500,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === TIME_LIMIT_ALARM) {
-    void onTick();
-    return;
-  }
-  if (alarm.name === DAILY_STATS_CLEANUP_ALARM) {
-    void runStatsCleanup();
-    return;
-  }
-  if (alarm.name === DAILY_RESET_ALARM) {
-    /* usage keys are date-stamped; reserved for future cleanup */
+  try {
+    if (alarm.name === TIME_LIMIT_ALARM) {
+      void onTick();
+      return;
+    }
+    if (alarm.name === DAILY_STATS_CLEANUP_ALARM) {
+      void runStatsCleanup();
+      return;
+    }
+    if (alarm.name === DAILY_RESET_ALARM) {
+      /* usage keys are date-stamped; reserved for future cleanup */
+    }
+  } catch {
+    /* fail-safe: never let a bad alarm tick crash the worker */
   }
 });
 
@@ -500,23 +528,27 @@ chrome.tabs.onActivated.addListener(async (info) => {
 });
 
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-  const candidateUrl = changeInfo.url ?? tab.url;
-  if (typeof candidateUrl === "string" && candidateUrl.length > 0) {
-    const res = await handleReturnUrl(candidateUrl);
-    if (res.ok) {
-      try {
-        await chrome.tabs.remove(tabId);
-      } catch {
-        /* tab may already be gone */
+  try {
+    const candidateUrl = changeInfo.url ?? tab.url;
+    if (typeof candidateUrl === "string" && candidateUrl.length > 0) {
+      const res = await handleReturnUrl(candidateUrl);
+      if (res.ok) {
+        try {
+          await chrome.tabs.remove(tabId);
+        } catch {
+          /* tab may already be gone */
+        }
+        return;
       }
-      return;
     }
+    if (!tab.active) return;
+    if (changeInfo.status !== "complete" && changeInfo.url === undefined) return;
+    if (tabId !== tracker.activeTabId && !tab.active) return;
+    await applyActiveTab(tab);
+    await evaluateAndBlock();
+  } catch {
+    /* fail-safe: tab update events fire often; swallow to avoid worker death */
   }
-  if (!tab.active) return;
-  if (changeInfo.status !== "complete" && changeInfo.url === undefined) return;
-  if (tabId !== tracker.activeTabId && !tab.active) return;
-  await applyActiveTab(tab);
-  await evaluateAndBlock();
 });
 
 chrome.tabs.onRemoved.addListener((tabId) => {
@@ -528,39 +560,51 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 });
 
 chrome.windows.onFocusChanged.addListener(async (windowId) => {
-  if (windowId === chrome.windows.WINDOW_ID_NONE) {
-    tracker.windowFocused = false;
-    return;
+  try {
+    if (windowId === chrome.windows.WINDOW_ID_NONE) {
+      tracker.windowFocused = false;
+      return;
+    }
+    tracker.windowFocused = true;
+    await refreshActiveTab();
+    await evaluateAndBlock();
+  } catch {
+    /* fail-safe: window focus events should never crash the worker */
   }
-  tracker.windowFocused = true;
-  await refreshActiveTab();
-  await evaluateAndBlock();
 });
 
-chrome.idle.onStateChanged.addListener(async (state) => {
-  if (state === "active") {
-    tracker.idle = false;
-    if (tracker.session.host !== null) {
-      tracker.session = { ...tracker.session, lastTickAt: Date.now() };
+chrome.idle.onStateChanged.addListener((state) => {
+  try {
+    if (state === "active") {
+      tracker.idle = false;
+      if (tracker.session.host !== null) {
+        tracker.session = { ...tracker.session, lastTickAt: Date.now() };
+      }
+    } else {
+      tracker.idle = true;
+      resetSession();
     }
-  } else {
-    tracker.idle = true;
-    resetSession();
+  } catch {
+    /* fail-safe */
   }
 });
 
 chrome.storage.onChanged.addListener(async (changes, area) => {
-  if (area !== "local") return;
-  if ("enabled" in changes || "sites" in changes) {
-    await refreshActiveTab();
-    await evaluateAndBlock();
-  }
-  if (
-    "dailyLimitMinutes" in changes ||
-    "sessionLimitMinutes" in changes ||
-    "usageByDate" in changes
-  ) {
-    await evaluateAndBlock();
+  try {
+    if (area !== "local") return;
+    if ("enabled" in changes || "sites" in changes) {
+      await refreshActiveTab();
+      await evaluateAndBlock();
+    }
+    if (
+      "dailyLimitMinutes" in changes ||
+      "sessionLimitMinutes" in changes ||
+      "usageByDate" in changes
+    ) {
+      await evaluateAndBlock();
+    }
+  } catch {
+    /* fail-safe */
   }
 });
 

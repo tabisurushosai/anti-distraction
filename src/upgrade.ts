@@ -34,12 +34,16 @@ const INSTALL_ID_KEY = "install_id";
 
 /** Returns the persisted install id, lazily generating and storing one on first use. */
 export async function getInstallId(): Promise<string> {
-  const data = await chrome.storage.local.get(INSTALL_ID_KEY);
-  const existing = data[INSTALL_ID_KEY];
-  if (typeof existing === "string" && existing.length > 0) return existing;
-  const fresh = generateInstallId();
-  await chrome.storage.local.set({ [INSTALL_ID_KEY]: fresh });
-  return fresh;
+  try {
+    const data = await chrome.storage.local.get(INSTALL_ID_KEY);
+    const existing = data[INSTALL_ID_KEY];
+    if (typeof existing === "string" && existing.length > 0) return existing;
+    const fresh = generateInstallId();
+    await chrome.storage.local.set({ [INSTALL_ID_KEY]: fresh });
+    return fresh;
+  } catch {
+    return generateInstallId();
+  }
 }
 
 /** Opens the Stripe checkout page in a new tab with the install id attached. */
@@ -48,7 +52,11 @@ export async function startCheckout(
 ): Promise<string> {
   const installId = await getInstallId();
   const url = buildCheckoutUrl(installId, config);
-  await chrome.tabs.create({ url });
+  try {
+    await chrome.tabs.create({ url });
+  } catch {
+    /* fail-safe: caller still receives the URL string for fallback handling */
+  }
   return url;
 }
 
