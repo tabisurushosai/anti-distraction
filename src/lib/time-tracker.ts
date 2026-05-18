@@ -1,3 +1,10 @@
+/**
+ * @file Pure session/usage time-tracking helpers used by the background
+ * service worker. Kept side-effect free so they can be unit-tested without
+ * mocking chrome.* APIs.
+ */
+
+/** Why the user is currently blocked, or null when not blocked. */
 export type BlockReason = "daily" | "session" | null;
 
 export type LimitConfig = {
@@ -13,20 +20,30 @@ export type SessionState = {
   lastTickAt: number | null;
 };
 
+/** Seconds of user inactivity after which an active session is reset. */
 export const IDLE_RESET_THRESHOLD_SECONDS = 30;
 
+/** Returns a fresh session with no active host. */
 export function emptySession(): SessionState {
   return { host: null, startedAt: null, accumulatedMs: 0, lastTickAt: null };
 }
 
+/** Starts a new session anchored to `host` at the given epoch ms. */
 export function startSession(host: string, at: number): SessionState {
   return { host, startedAt: at, accumulatedMs: 0, lastTickAt: at };
 }
 
+/** True when both hosts are non-null and equal. */
 export function isSameHost(a: string | null, b: string | null): boolean {
   return a !== null && b !== null && a === b;
 }
 
+/**
+ * Adds elapsed time since `prev.lastTickAt` to the session and returns the
+ * updated session plus the delta actually applied. Negative or non-finite
+ * deltas are dropped, and any delta is clamped to `maxDeltaMs` to prevent a
+ * single tick spanning a sleep/wake from counting full hours.
+ */
 export function advanceSession(
   prev: SessionState,
   now: number,
@@ -50,6 +67,11 @@ export function advanceSession(
   };
 }
 
+/**
+ * Decides whether the current session should be blocked given today's total
+ * usage and the in-progress session length. Returns null when nothing applies
+ * (extension disabled, no limits set, or under limits).
+ */
 export function evaluateBlock(
   cfg: LimitConfig,
   todayUsageMs: number,
@@ -67,6 +89,10 @@ export function evaluateBlock(
   return null;
 }
 
+/**
+ * Returns the hostname for an http(s) URL, or null for missing/invalid input
+ * or other schemes (chrome://, file://, about:blank, etc.).
+ */
 export function extractHostFromUrl(url: string | undefined): string | null {
   if (!url) return null;
   try {

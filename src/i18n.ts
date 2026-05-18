@@ -1,3 +1,11 @@
+/**
+ * @file Thin wrapper around `chrome.i18n` plus a DOM helper (`applyI18n`)
+ * that swaps text, placeholders, titles, and ARIA labels on elements tagged
+ * with `data-i18n*` attributes. All keys are listed in `MessageKey` so the
+ * compiler catches typos.
+ */
+
+/** Every i18n message key referenced from TS code. */
 export type MessageKey =
   | "appName"
   | "appDesc"
@@ -74,11 +82,20 @@ export type MessageKey =
   | "options_license_applied"
   | "options_license_storage_error";
 
+/**
+ * Looks up `key` in the active locale's messages. When a translation is
+ * missing, returns the key itself so developers can spot gaps in the UI.
+ */
 export function t(key: MessageKey, substitutions?: string | string[]): string {
   const msg = chrome.i18n.getMessage(key, substitutions);
   return msg === "" ? key : msg;
 }
 
+/**
+ * Localizes every element under `root` carrying a `data-i18n*` attribute:
+ * `data-i18n` → textContent, `-placeholder`, `-title`, `-aria-label` →
+ * their respective properties.
+ */
 export function applyI18n(root: ParentNode = document): void {
   root.querySelectorAll<HTMLElement>("[data-i18n]").forEach((el) => {
     const key = el.dataset.i18n as MessageKey | undefined;
@@ -100,6 +117,7 @@ export function applyI18n(root: ParentNode = document): void {
   });
 }
 
+/** Returns Chrome's UI locale (e.g. `"en-US"` or `"ja"`). */
 export function getUiLocale(): string {
   return chrome.i18n.getUILanguage();
 }

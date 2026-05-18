@@ -1,10 +1,20 @@
+/**
+ * @file Pure helpers for the Stripe-backed upgrade flow: build the checkout
+ * URL, validate return URLs and license codes, and classify what action a
+ * return URL should trigger. The wrappers that actually touch chrome.tabs /
+ * chrome.storage live in `src/upgrade.ts`.
+ */
+
+/** Stripe Payment Link target. Replace with the real URL before release. */
 export const STRIPE_CHECKOUT_URL =
   "https://buy.stripe.com/REPLACE_WITH_REAL_PAYMENT_LINK";
 
+/** Origins+path-prefixes recognized as post-checkout return URLs. */
 export const RETURN_URL_PATTERNS: readonly string[] = [
   "https://anti-distraction.example/unlock",
 ];
 
+/** Query-string key carrying the unlock token on a return URL. */
 export const UNLOCK_PARAM = "ad_unlock";
 
 const LICENSE_MIN_LEN = 4;
@@ -23,6 +33,10 @@ export const DEFAULT_CONFIG: UpgradeConfig = {
   unlockParam: UNLOCK_PARAM,
 };
 
+/**
+ * Generates a per-install identifier used as Stripe `client_reference_id`.
+ * The `rng` indirection exists so tests can inject a deterministic source.
+ */
 export function generateInstallId(
   rng: () => string = defaultRandomId,
 ): string {
@@ -39,6 +53,10 @@ function defaultRandomId(): string {
   );
 }
 
+/**
+ * Returns the checkout URL with `client_reference_id=<installId>` attached
+ * so the post-checkout webhook can correlate the purchase back to this user.
+ */
 export function buildCheckoutUrl(
   installId: string,
   config: UpgradeConfig = DEFAULT_CONFIG,
@@ -50,6 +68,7 @@ export function buildCheckoutUrl(
   return url.toString();
 }
 
+/** True when `rawUrl` matches a configured return URL pattern (origin + path prefix). */
 export function isReturnUrl(
   rawUrl: string,
   config: UpgradeConfig = DEFAULT_CONFIG,
@@ -73,6 +92,7 @@ export function isReturnUrl(
   });
 }
 
+/** Extracts the unlock token from a URL's query string; null when absent/empty. */
 export function parseUnlockToken(
   rawUrl: string,
   config: UpgradeConfig = DEFAULT_CONFIG,
@@ -87,6 +107,7 @@ export function parseUnlockToken(
   return v && v.length > 0 ? v : null;
 }
 
+/** True when `code` is a 4-128 character `[A-Za-z0-9_-]+` license string. */
 export function isValidLicenseCode(code: unknown): boolean {
   if (typeof code !== "string") return false;
   const trimmed = code.trim();
@@ -103,6 +124,11 @@ export type ReturnUrlOutcome =
   | { kind: "unlock"; token: string }
   | { kind: "ignore"; reason: "invalid-url" | "missing-token" | "invalid-token" };
 
+/**
+ * Decides what to do with a URL the user navigated to: trigger an unlock
+ * with the parsed token, or ignore it with a structured reason. Centralizes
+ * the validation chain so the caller does not duplicate the checks.
+ */
 export function classifyReturnUrl(
   rawUrl: string,
   config: UpgradeConfig = DEFAULT_CONFIG,

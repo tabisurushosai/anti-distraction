@@ -1,3 +1,8 @@
+/**
+ * @file Pure helpers that summarize the persisted per-day usage map into the
+ * shapes the options/stats UI needs (rows, streaks, totals, averages).
+ */
+
 import type { UsageByDate } from "../storage";
 
 export type UsageRow = {
@@ -45,6 +50,10 @@ function startOfLocalDay(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
+/**
+ * Returns the `YYYY-MM-DD` keys for the most recent `n` local days ending on
+ * `today` (oldest first). Empty array for non-positive n.
+ */
 export function lastNDays(today: Date, n: number): string[] {
   if (!Number.isFinite(n) || n <= 0) return [];
   const count = Math.floor(n);
@@ -58,11 +67,16 @@ export function lastNDays(today: Date, n: number): string[] {
   return out;
 }
 
+/** Floors ms to whole minutes. Returns 0 for non-positive or non-finite input. */
 export function msToMinutes(ms: number): number {
   if (!Number.isFinite(ms) || ms <= 0) return 0;
   return Math.floor(ms / 60_000);
 }
 
+/**
+ * Maps each date key in `keys` to a row containing its ms, minutes, and
+ * whether the day exceeded `dailyLimitMinutes`. Missing days become zero.
+ */
 export function summarizeUsage(
   usage: UsageByDate,
   keys: readonly string[],
@@ -77,6 +91,11 @@ export function summarizeUsage(
   });
 }
 
+/**
+ * Renders a minute count using a localized template. Picks the `minutesOnly`
+ * template when under 60 minutes, otherwise the `hoursMinutes` template with
+ * `$H$` and `$M$` placeholders substituted.
+ */
 export function formatMinutes(
   minutes: number,
   template: { hoursMinutes: string; minutesOnly: string },
@@ -90,6 +109,10 @@ export function formatMinutes(
   return template.hoursMinutes.replace("$H$", String(h)).replace("$M$", String(m));
 }
 
+/**
+ * Drops entries older than `retainDays` and any non-numeric/invalid entries.
+ * Returns a fresh object so the caller can decide whether to persist.
+ */
 export function pruneUsage(
   usage: UsageByDate,
   today: Date,
@@ -113,6 +136,11 @@ export function pruneUsage(
   return out;
 }
 
+/**
+ * Computes the current and best run of days that stayed under the daily
+ * limit. Returns null when no positive limit is configured (no streak
+ * concept exists without a goal).
+ */
 export function computeStreak(
   summary: UsageSummary,
   dailyLimitMinutes: number,
@@ -137,6 +165,10 @@ export function computeStreak(
   return { current, best };
 }
 
+/**
+ * Fraction of days in `summary` that stayed under the daily limit, in [0, 1].
+ * Returns null when no positive limit is set or the summary is empty.
+ */
 export function achievementRate(summary: UsageSummary, dailyLimitMinutes: number): number | null {
   const limit = Number.isFinite(dailyLimitMinutes) ? Math.floor(dailyLimitMinutes) : 0;
   if (limit <= 0) return null;
@@ -145,10 +177,12 @@ export function achievementRate(summary: UsageSummary, dailyLimitMinutes: number
   return ok / summary.length;
 }
 
+/** Sum of `row.minutes` across the summary. */
 export function totalMinutes(summary: UsageSummary): number {
   return summary.reduce((acc, row) => acc + row.minutes, 0);
 }
 
+/** Rounded mean minutes per day across the summary; 0 when empty. */
 export function averageMinutes(summary: UsageSummary): number {
   if (summary.length === 0) return 0;
   return Math.round(totalMinutes(summary) / summary.length);

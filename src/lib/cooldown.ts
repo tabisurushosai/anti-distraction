@@ -1,3 +1,10 @@
+/**
+ * @file Pure helpers for the "30s peek" cooldown feature: clamping,
+ * remaining-time math, and per-day quota bookkeeping. Kept side-effect free
+ * so the background worker can compose them around chrome.storage reads.
+ */
+
+/** Reason an unblock request was rejected. */
 export type CooldownDeniedReason =
   | "rate-limit"
   | "disabled"
@@ -19,6 +26,11 @@ export const COOLDOWN_MIN_SECONDS = 5;
 export const COOLDOWN_MAX_SECONDS = 300;
 export const COOLDOWN_FREE_FIXED_SECONDS = 30;
 
+/**
+ * Returns the effective cooldown length in seconds. Free users are pinned to
+ * `COOLDOWN_FREE_FIXED_SECONDS`; premium users may pick within
+ * [`COOLDOWN_MIN_SECONDS`, `COOLDOWN_MAX_SECONDS`].
+ */
 export function clampCooldownSeconds(value: number, isPremium: boolean): number {
   if (!Number.isFinite(value)) return COOLDOWN_FREE_FIXED_SECONDS;
   const i = Math.floor(value);
@@ -28,6 +40,7 @@ export function clampCooldownSeconds(value: number, isPremium: boolean): number 
   return i;
 }
 
+/** True when the most recent unblock is still within its cooldown window. */
 export function isCooldownActive(
   now: number,
   lastUnblockAt: number | null,
@@ -39,6 +52,7 @@ export function isCooldownActive(
   return now - lastUnblockAt < cooldownSeconds * 1000;
 }
 
+/** Whole seconds (ceil) remaining in the active cooldown; 0 when inactive. */
 export function remainingSeconds(
   now: number,
   lastUnblockAt: number | null,
@@ -51,12 +65,14 @@ export function remainingSeconds(
   return Math.ceil(remainingMs / 1000);
 }
 
+/** Daily unblock quota for the user's current tier; 0 when misconfigured. */
 export function dailyMax(state: CooldownCheckState, isPremium: boolean): number {
   const raw = isPremium ? state.unblockMaxPerDayPremium : state.unblockMaxPerDayFree;
   if (!Number.isFinite(raw) || raw < 0) return 0;
   return Math.floor(raw);
 }
 
+/** Number of unblocks already consumed on `todayKey` (clamped to >=0). */
 export function usedToday(
   state: CooldownCheckState,
   todayKey: string,
@@ -66,6 +82,7 @@ export function usedToday(
   return Math.floor(v);
 }
 
+/** True (with reason on false) when the user still has unblock quota today. */
 export function canUnblock(
   state: CooldownCheckState,
   todayKey: string,
@@ -77,6 +94,10 @@ export function canUnblock(
   return { ok: true };
 }
 
+/**
+ * Produces the patch the caller must persist after granting an unblock:
+ * advance `lastUnblockAt` and increment the per-day counter for `todayKey`.
+ */
 export function recordUnblock(
   state: CooldownCheckState,
   todayKey: string,

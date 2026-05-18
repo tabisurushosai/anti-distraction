@@ -1,6 +1,15 @@
+/**
+ * @file Typed wrapper around `chrome.storage.local`. Centralizes the schema,
+ * defaults, and per-key validators so callers never see `unknown` and a
+ * corrupted/missing key transparently falls back to its default value.
+ */
+
+/** Map of `YYYY-MM-DD` (local) -> milliseconds of usage on that day. */
 export type UsageByDate = Record<string, number>;
+/** Map of `YYYY-MM-DD` (local) -> number of unblocks used on that day. */
 export type UnblockCountByDate = Record<string, number>;
 
+/** Full shape of `chrome.storage.local` for this extension. */
 export type StorageSchema = {
   enabled: boolean;
   sites: string[];
@@ -18,10 +27,13 @@ export type StorageSchema = {
   unblockMaxPerDayPremium: number;
 };
 
+/** Union of all valid keys in `StorageSchema`. */
 export type StorageKey = keyof StorageSchema;
 
+/** Persisted schema version, bumped when a migration is required. */
 export const SCHEMA_VERSION = 1;
 
+/** Sites pre-populated on first install. Must stay aligned with the manifest. */
 export const DEFAULT_SITES: readonly string[] = [
   "youtube.com",
   "twitter.com",
@@ -31,6 +43,7 @@ export const DEFAULT_SITES: readonly string[] = [
   "tiktok.com",
 ];
 
+/** Default values applied when a key is missing or fails validation. */
 export const DEFAULTS: StorageSchema = {
   enabled: true,
   sites: [...DEFAULT_SITES],
@@ -101,11 +114,13 @@ function coerce<K extends StorageKey>(key: K, raw: unknown): StorageSchema[K] {
   return VALIDATORS[key](raw) ? raw : DEFAULTS[key];
 }
 
+/** Reads a single key, falling back to its default if missing or invalid. */
 export async function getValue<K extends StorageKey>(key: K): Promise<StorageSchema[K]> {
   const data = await chrome.storage.local.get(key);
   return coerce(key, data[key]);
 }
 
+/** Reads multiple keys in a single chrome.storage round-trip. */
 export async function getValues<K extends StorageKey>(
   keys: readonly K[],
 ): Promise<Pick<StorageSchema, K>> {
@@ -117,6 +132,7 @@ export async function getValues<K extends StorageKey>(
   return out;
 }
 
+/** Reads the entire schema; useful for export/snapshot operations. */
 export async function getAll(): Promise<StorageSchema> {
   const keys = Object.keys(DEFAULTS) as StorageKey[];
   const data = await chrome.storage.local.get(keys);
@@ -127,6 +143,7 @@ export async function getAll(): Promise<StorageSchema> {
   return out;
 }
 
+/** Writes a single key. Caller is responsible for type-correct values. */
 export async function setValue<K extends StorageKey>(
   key: K,
   value: StorageSchema[K],
@@ -134,14 +151,20 @@ export async function setValue<K extends StorageKey>(
   await chrome.storage.local.set({ [key]: value });
 }
 
+/** Writes multiple keys atomically (single chrome.storage.set call). */
 export async function setValues(patch: Partial<StorageSchema>): Promise<void> {
   await chrome.storage.local.set(patch);
 }
 
+/** Removes a single key from storage; next read will return its default. */
 export async function removeValue(key: StorageKey): Promise<void> {
   await chrome.storage.local.remove(key);
 }
 
+/**
+ * Writes only the keys that are currently absent. Called on install/update
+ * so existing user data is never overwritten while new keys get a sane value.
+ */
 export async function ensureDefaults(): Promise<void> {
   const keys = Object.keys(DEFAULTS) as StorageKey[];
   const existing = await chrome.storage.local.get(keys);
@@ -156,16 +179,22 @@ export async function ensureDefaults(): Promise<void> {
   }
 }
 
+/** Typed equivalent of `chrome.storage.StorageChange` for one key. */
 export type TypedChange<K extends StorageKey> = {
   key: K;
   oldValue: StorageSchema[K] | undefined;
   newValue: StorageSchema[K] | undefined;
 };
 
+/** Listener invoked with the subset of keys that actually changed. */
 export type StorageChangeListener = (changes: {
   [K in StorageKey]?: TypedChange<K>;
 }) => void;
 
+/**
+ * Subscribes to `chrome.storage.local` changes with per-key types and
+ * default-coerced values. Returns an unsubscribe function.
+ */
 export function onStorageChanged(listener: StorageChangeListener): () => void {
   const handler = (
     changes: { [k: string]: chrome.storage.StorageChange },
@@ -194,6 +223,7 @@ export function onStorageChanged(listener: StorageChangeListener): () => void {
   return () => chrome.storage.onChanged.removeListener(handler);
 }
 
+/** `YYYY-MM-DD` for the local timezone of `date` (defaults to now). */
 export function todayKey(date: Date = new Date()): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
@@ -201,6 +231,11 @@ export function todayKey(date: Date = new Date()): string {
   return `${y}-${m}-${d}`;
 }
 
+/**
+ * Adds `ms` to today's usage entry and returns the new running total. Non-
+ * positive or non-finite inputs are dropped (the current total is returned
+ * unchanged), which lets the background worker pass raw deltas directly.
+ */
 export async function addUsageMs(ms: number, date: Date = new Date()): Promise<number> {
   if (!Number.isFinite(ms) || ms <= 0) {
     const current = await getValue("usageByDate");

@@ -1,3 +1,10 @@
+/**
+ * @file Options page script. Owns four UI sections (sites, limits, appearance/
+ * cooldown, stats, premium) and persists each user input directly to
+ * `chrome.storage.local` — there is no submit button; the storage listener
+ * is the single source of truth for re-rendering.
+ */
+
 import { applyI18n, t } from "./i18n";
 import { normalizeHost, isCoveredByManifest } from "./lib/site-input";
 import {
@@ -85,6 +92,7 @@ function clampInt(value: number, min: number, max: number): number {
   return i;
 }
 
+/** Reads the entire options view-model from chrome.storage with defaults. */
 async function loadState(): Promise<OptionsState> {
   const data = await chrome.storage.local.get(Object.values(STORAGE_KEYS));
   return {
@@ -132,6 +140,7 @@ async function loadState(): Promise<OptionsState> {
   };
 }
 
+/** Persists the user-editable subset of options to storage. */
 async function saveState(state: OptionsState): Promise<void> {
   try {
     await chrome.storage.local.set({
@@ -148,6 +157,7 @@ async function saveState(state: OptionsState): Promise<void> {
 
 const view: OptionsState = { ...DEFAULTS };
 
+/** True when the user has either purchased premium or is within trial window. */
 function isUnlimited(): boolean {
   if (view.premiumUnlocked) return true;
   if (view.trialStartTs !== null) {
@@ -299,6 +309,7 @@ function renderPremium(): void {
   if (upgradeBtn) upgradeBtn.disabled = false;
 }
 
+/** Memo-free helper; cheap because all inputs are in-memory `view` fields. */
 function isPremiumNow(): boolean {
   return isPremiumEffective(
     {
@@ -429,6 +440,7 @@ function renderPremiumGate(): void {
   note.hidden = isPremiumNow();
 }
 
+/** Re-renders the entire stats section (table + aggregate + premium gate). */
 function renderStats(): void {
   const days = isPremiumNow() ? STATS_PREMIUM_DAYS : STATS_FREE_DAYS;
   const keys = lastNDays(new Date(), days);
@@ -458,6 +470,7 @@ function flashSaved(): void {
   }, 1800);
 }
 
+/** Wires every input/button on the options page to its handler. */
 function bindEvents(): void {
   const dailyEl = document.getElementById("daily-limit-input") as HTMLInputElement | null;
   dailyEl?.addEventListener("input", () => {
@@ -607,6 +620,7 @@ function bindEvents(): void {
   });
 }
 
+/** Subscribes to storage changes and partially re-renders affected sections. */
 function watchStorage(): void {
   let statsPending: number | null = null;
   chrome.storage.onChanged.addListener((changes, area) => {
@@ -661,6 +675,7 @@ function watchStorage(): void {
   });
 }
 
+/** Boots the options page once the DOM is ready. */
 async function init(): Promise<void> {
   applyI18n();
   const loaded = await loadState();

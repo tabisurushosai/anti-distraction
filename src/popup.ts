@@ -1,3 +1,9 @@
+/**
+ * @file Toolbar popup script. Renders today's usage / remaining time, the
+ * cooldown status, the on/off toggle, and a premium upgrade CTA, then keeps
+ * itself in sync with `chrome.storage` changes via a debounced re-render.
+ */
+
 import { applyI18n, t } from "./i18n";
 import {
   lastNDays,
@@ -55,6 +61,7 @@ function msToMinutes(ms: number): number {
   return Math.max(0, Math.floor(ms / 60000));
 }
 
+/** Reads the popup's view-model from chrome.storage with permissive defaults. */
 async function loadState(): Promise<PopupState> {
   const data = await chrome.storage.local.get(Object.values(STORAGE_KEYS));
   return {
@@ -182,6 +189,7 @@ function renderPremium(state: PopupState): void {
   upgradeBtn.hidden = purchased;
 }
 
+/** Single entry point invoked on first render and after each storage change. */
 function render(state: PopupState): void {
   renderStatus(state);
   renderToggleButton(state);
@@ -191,6 +199,7 @@ function render(state: PopupState): void {
   renderPremium(state);
 }
 
+/** Toggles the global `enabled` flag; storage listener re-renders the UI. */
 async function handleToggle(): Promise<void> {
   const data = await chrome.storage.local.get(STORAGE_KEYS.enabled);
   const next = !(typeof data.enabled === "boolean" ? data.enabled : true);
@@ -262,6 +271,7 @@ function showInlineDenied(textEl: HTMLElement, reason: string): void {
   textEl.hidden = false;
 }
 
+/** Sends an unblock request and either runs the cooldown or shows a denial. */
 async function handleUnblockClick(
   button: HTMLButtonElement,
   textEl: HTMLElement,
@@ -331,6 +341,7 @@ function bindEvents(_state: PopupState): void {
   });
 }
 
+/** Subscribes to chrome.storage.local with a debounce so bursts coalesce. */
 function watchStorage(): void {
   let pending: number | null = null;
   chrome.storage.onChanged.addListener((changes, area) => {
@@ -347,6 +358,7 @@ function watchStorage(): void {
   });
 }
 
+/** Boots the popup once the DOM is ready. */
 async function init(): Promise<void> {
   applyI18n();
   const state = await loadState();

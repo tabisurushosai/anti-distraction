@@ -1,3 +1,11 @@
+/**
+ * @file MV3 service worker. Owns the in-memory `tracker` (active tab/host,
+ * session, cooldown), reacts to chrome.tabs/windows/idle events, and uses
+ * chrome.alarms to drive the ~15s evaluation tick, daily-reset, and stats
+ * cleanup. Sends `ad/time-limit/*` messages to content scripts to show or
+ * hide the block overlay.
+ */
+
 import {
   DEFAULTS,
   addUsageMs,
@@ -60,6 +68,7 @@ const tracker: Tracker = {
   unblockInFlight: false,
 };
 
+/** Re-hydrates `tracker.cooldownUntil` on worker wakeup from persisted state. */
 async function restoreCooldownFromStorage(): Promise<void> {
   try {
     const { lastUnblockAt, cooldownSeconds } = await getValues([
@@ -79,6 +88,7 @@ async function restoreCooldownFromStorage(): Promise<void> {
   }
 }
 
+/** Stamps the trial start timestamp on the very first install. */
 async function initializeTrial(): Promise<void> {
   const existing = await chrome.storage.local.get(TRIAL_START_KEY);
   if (existing[TRIAL_START_KEY] === undefined) {
@@ -86,6 +96,7 @@ async function initializeTrial(): Promise<void> {
   }
 }
 
+/** (Re)creates the alarm that runs every midnight local time. */
 function scheduleDailyReset(): void {
   const now = new Date();
   const next = new Date(now);
@@ -96,18 +107,21 @@ function scheduleDailyReset(): void {
   });
 }
 
+/** (Re)creates the high-frequency tick (~15s) that drives session/block evaluation. */
 function scheduleTimeLimitTick(): void {
   chrome.alarms.create(TIME_LIMIT_ALARM, {
     periodInMinutes: TIME_LIMIT_PERIOD_MIN,
   });
 }
 
+/** (Re)creates the once-per-day alarm that prunes old usage entries. */
 function scheduleStatsCleanup(): void {
   chrome.alarms.create(DAILY_STATS_CLEANUP_ALARM, {
     periodInMinutes: 60 * 24,
   });
 }
 
+/** Drops usage/unblock entries older than `STATS_RETAIN_DAYS`. */
 async function runStatsCleanup(): Promise<void> {
   try {
     const { usageByDate, unblockCountByDate } = await getValues([
@@ -161,6 +175,7 @@ function resetSession(): void {
   tracker.session = emptySession();
 }
 
+/** Looks up the currently active tab and re-derives `tracker.activeHost`. */
 async function refreshActiveTab(): Promise<void> {
   try {
     const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
@@ -178,6 +193,11 @@ async function refreshActiveTab(): Promise<void> {
   }
 }
 
+/**
+ * Updates the in-memory session for the given active tab: starts a fresh
+ * session on host change, clears the host when the tab is off-list, and
+ * touches `lastTickAt` when staying on the same host.
+ */
 async function applyActiveTab(tab: chrome.tabs.Tab): Promise<void> {
   const tabId = tab.id ?? null;
   const host = extractHostFromUrl(tab.url);
@@ -218,6 +238,11 @@ async function sendToTab(tabId: number, message: unknown): Promise<void> {
   }
 }
 
+/**
+ * Tick handler: decides whether the active tab should be blocked given the
+ * current session/today usage and cooldown state, and notifies the content
+ * script via `ad/time-limit/{block,unblock}`.
+ */
 async function evaluateAndBlock(): Promise<void> {
   if (tracker.activeTabId === null) return;
   const tabId = tracker.activeTabId;
@@ -270,6 +295,11 @@ async function evaluateAndBlock(): Promise<void> {
   }
 }
 
+/**
+ * Handles the `ad/time-limit/request-unblock` message from popup/content.
+ * Enforces enabled/quota/premium constraints, then persists the new state
+ * and arms the in-memory cooldown so the next tick will not re-block.
+ */
 async function onRequestUnblock(senderTabId: number | null): Promise<CooldownResponse> {
   try {
     const cfg = await getValues([
@@ -370,6 +400,7 @@ async function onRequestUnblock(senderTabId: number | null): Promise<CooldownRes
   }
 }
 
+/** Periodic tick: advances the session, accumulates usage, then re-evaluates blocking. */
 async function onTick(): Promise<void> {
   if (!isMeasuring()) {
     if (tracker.session.host !== null) {

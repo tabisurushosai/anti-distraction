@@ -1,3 +1,13 @@
+/**
+ * @file Content script injected into matched sites. Applies the grayscale
+ * filter via a single `<html data-anti-distraction>` attribute toggle and
+ * renders the block overlay (with the optional 30s "peek" cooldown) when
+ * the background worker tells it the user is over a limit.
+ *
+ * Why a class on `<html>`: keeps the page CSS-only when active (no per-element
+ * mutation) so DOM-heavy sites like Twitter/YouTube don't pay a layout cost.
+ */
+
 import { getValues, onStorageChanged } from "./storage";
 import { hostMatches } from "./lib/host-match";
 
@@ -26,6 +36,7 @@ html[${ROOT_ATTR}="active"] {
   return el;
 }
 
+/** Applies the grayscale + brightness filter at the given intensity (0-100). */
 function applyGray(intensity: number): void {
   ensureStyleEl();
   const clamped = Math.max(0, Math.min(100, intensity));
@@ -36,6 +47,7 @@ function applyGray(intensity: number): void {
   root.setAttribute(ROOT_ATTR, "active");
 }
 
+/** Removes the grayscale attribute (CSS variables are left as-is). */
 function removeGray(): void {
   const root = document.documentElement;
   if (root.hasAttribute(ROOT_ATTR)) root.removeAttribute(ROOT_ATTR);
@@ -114,6 +126,7 @@ function ensureOverlayStyle(): void {
   (document.head || document.documentElement).appendChild(el);
 }
 
+/** chrome.i18n lookup that quietly falls back when the API throws or returns ""; needed because content scripts can run before chrome.i18n is ready. */
 function i18n(key: string, fallback: string, sub?: string | string[]): string {
   try {
     const v = chrome.i18n?.getMessage?.(key, sub as string | string[]);
@@ -154,6 +167,11 @@ function setCountdownText(el: HTMLElement, seconds: number, ariaMode: boolean): 
   }
 }
 
+/**
+ * Starts the visible countdown for the "30s peek" cooldown. Uses two
+ * intervals: a 250ms visual tick for smooth numbers and a 3s ARIA tick to
+ * avoid spamming screen readers. Both stop when `untilMs` is reached.
+ */
 function startCountdown(untilMs: number, button: HTMLButtonElement): void {
   stopCountdown();
   const card = document.querySelector(`#${OVERLAY_ID} .ad-overlay-card`);
@@ -231,6 +249,11 @@ function clearDenied(): void {
   if (el && el.parentNode) el.parentNode.removeChild(el);
 }
 
+/**
+ * Asks the background worker for a temporary unblock. On success starts the
+ * cooldown timer; on rate-limit/error shows the localized denial message and
+ * re-enables the button so the user can retry.
+ */
 async function requestUnblock(): Promise<void> {
   try {
     const res = (await chrome.runtime.sendMessage({
@@ -256,6 +279,7 @@ async function requestUnblock(): Promise<void> {
   }
 }
 
+/** Mounts the full-screen modal overlay explaining why the page is blocked. */
 function showOverlay(reason: "daily" | "session"): void {
   if (document.getElementById(OVERLAY_ID)) return;
   ensureOverlayStyle();
@@ -358,6 +382,7 @@ function installMessageListener(): void {
   });
 }
 
+/** Boots the content script: read state, apply gray, then subscribe to changes and background messages. Only runs in top frames. */
 async function init(): Promise<void> {
   if (window.top !== window) return;
   try {
