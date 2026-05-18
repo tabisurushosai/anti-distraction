@@ -4,7 +4,7 @@
     "description": "拡張機能の名前"
   },
   "appDesc": {
-    "message": "SNS/YouTube タブを灰色化し、滞在時間を制限して集中をサポートします。",
+    "message": "YouTube・X・Instagram・TikTok 等のサイトを灰色化。日次/セッション時間制限と統計で集中力をサポートします。",
     "description": "拡張機能の概要"
   },
   "popup_title": {
