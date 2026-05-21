@@ -26,7 +26,7 @@
 
 ### 4. 権限の使用目的
 - `storage`: 上記の設定および統計をブラウザ内に保存するため
-- `tabs` / `activeTab`: 現在のタブの URL を取得し、ブロック対象かどうかを判定するため
+- `tabs`: 現在のタブの URL を取得し、ブロック対象かどうかを判定するため
 - `alarms`: 日次リセットおよび滞在時間の計測のため
 - ホスト権限: ユーザーが指定したブロック対象サイトに対してのみ、ページ表示の灰色化を行うため
 
@@ -66,7 +66,7 @@ The Extension stores the following information only within your browser (`chrome
 
 ### 4. Permissions and Their Purposes
 - `storage`: To save settings and statistics within your browser
-- `tabs` / `activeTab`: To read the current tab's URL and determine whether it should be greyed out
+- `tabs`: To read the current tab's URL and determine whether it should be greyed out
 - `alarms`: To perform daily resets and time-tracking
 - Host permissions: Used only for the sites the user has chosen to block, to apply the grey-out overlay
 

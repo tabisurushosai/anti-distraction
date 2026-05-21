@@ -33,7 +33,7 @@ A Chrome extension (Manifest V3) that grays out SNS / video tabs and enforces vi
 npm install     # 依存インストール
 npm run lint    # 型チェック (tsc --noEmit)
 npm run build   # vite で dist/ にビルド
-npm run test    # node:test で単体テスト
+npm run test:run # node:test で単体テスト
 npm run package # release/anti-distraction.zip を生成
 ```
 
@@ -66,7 +66,7 @@ npm run package # release/anti-distraction.zip を生成
 npm install     # install deps
 npm run lint    # type check (tsc --noEmit)
 npm run build   # build to dist/ with vite
-npm run test    # unit tests via node:test
+npm run test:run # unit tests via node:test
 npm run package # create release/anti-distraction.zip
 ```
 
