@@ -130,6 +130,27 @@ test("Gumroad response accepts only the configured, paid purchase", () => {
     valid: false,
     reason: "invalid-response",
   });
+  for (const field of ["refunded", "disputed", "chargebacked"]) {
+    const purchase = { ...VALID_PAYLOAD.purchase };
+    delete purchase[field];
+    assert.deepEqual(
+      evaluateGumroadResponse(
+        { ...VALID_PAYLOAD, purchase },
+        CONFIG.productId,
+      ),
+      { valid: false, reason: "invalid-response" },
+    );
+  }
+  assert.deepEqual(
+    evaluateGumroadResponse(
+      {
+        ...VALID_PAYLOAD,
+        purchase: { ...VALID_PAYLOAD.purchase, refunded: "false" },
+      },
+      CONFIG.productId,
+    ),
+    { valid: false, reason: "invalid-response" },
+  );
 });
 
 test("reverification and offline grace use exact boundaries", () => {

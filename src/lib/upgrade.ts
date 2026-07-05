@@ -121,6 +121,13 @@ export function evaluateGumroadResponse(
   ) {
     return { valid: false, reason: "product-mismatch" };
   }
+  if (
+    typeof purchase.refunded !== "boolean" ||
+    typeof purchase.chargebacked !== "boolean" ||
+    typeof purchase.disputed !== "boolean"
+  ) {
+    return { valid: false, reason: "invalid-response" };
+  }
   if (purchase.refunded === true) {
     return { valid: false, reason: "refunded" };
   }
