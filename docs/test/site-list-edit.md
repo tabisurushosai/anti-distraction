@@ -48,7 +48,7 @@
 | 7  | リストの任意 1 件で「削除」ボタンを押下 | その行のみがリストから消える。確認ダイアログは出ない。`site-warning` がクリアされる |
 | 8  | 「初期設定に戻す」を押下 | sites が DEFAULT 6 件に戻り、limits / grayIntensity / cooldown も初期値に戻る。`site-warning` はクリアされる |
 | 9  | sites を 10 件まで追加 (例: `a.example.com`, `b.example.com`, …, `j.example.com`) | 10 件到達直後に「追加」ボタンと入力欄が disabled になり、`site-limit` 領域に `options_site_limit_reached`（「無料版では最大 10 件まで」）が表示される |
-| 10 | 上記状態で DevTools から `chrome.storage.local.set({premium_unlocked: true})` | options を再描画せずに即座に「追加」ボタンと入力欄が enabled に戻り、`site-limit` の文言が消える |
+| 10 | 上記状態でDevToolsから`const now=Date.now(); chrome.storage.local.set({premium_unlocked:true,premium_verified_at:now,premium_grace_until:now+14*86400000})` | optionsを再描画せずに即座に「追加」ボタンと入力欄がenabledに戻り、`site-limit`の文言が消える |
 | 11 | trial を `chrome.storage.local.set({trial_start_ts: Date.now()})` でセット | 同様に Premium 扱いとなり、上限が解除される。7 日経過後（時刻を進める / `Date.now() - 8 * DAY_MS` をセット）は再び 10 件上限が適用される |
 | 12 | sites を編集して「保存」を押す | `options_saved` トーストが約 1.8 秒表示される。リロードしても `sites` が維持される |
 | 13 | options タブを開いたまま、別の Chrome ウィンドウから DevTools 経由で `chrome.storage.local.set({sites: ["youtube.com"]})` | `chrome.storage.onChanged` 経由で options 側のリストも同期更新される |
@@ -64,7 +64,8 @@
 - [x] 入力バリデーション失敗時は `options_site_invalid` を `site-warning` に表示し、保存も行わない。
 - [x] 範囲外ホスト追加時は `options_site_not_covered` を表示（追加自体は許可）。
 - [x] 上限到達時は追加ボタン + 入力欄を `disabled` にして無効化。
-- [x] `chrome.storage.onChanged` の `local` エリア購読で `sites` / `trial_start_ts` / `premium_unlocked` の外部更新を反映。
+- [x] `chrome.storage.onChanged`の`local`エリア購読で`sites` / `trial_start_ts` /
+  `premium_unlocked` / `premium_verified_at` / `premium_grace_until`の外部更新を反映。
 - [x] `chrome.storage.local.set` 失敗時は `console.warn` のみで UI を継続。
 - [x] `_locales/ja` と `_locales/en` の双方に新規キー (`options_site_limit_reached` / `options_site_not_covered` / `options_site_invalid`) が存在。
 

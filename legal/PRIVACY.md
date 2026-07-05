@@ -54,7 +54,8 @@ Gumroadによる情報処理にはGumroadのプライバシーポリシーが適
 
 ### 6. 保存期間と削除
 
-設定画面のResetまたは拡張機能の削除により、ブラウザ内の情報を削除できます。
+設定画面のResetは、ブロック対象や時間制限など利用者が編集できる設定だけを初期化します。
+利用統計、Trial、Premium、License情報を含む全情報は、拡張機能を削除すると削除されます。
 無効、返金、紛争、Chargebackが確認されたLicenseはPremiumを停止し、保存したLicense Keyを削除します。
 
 ### 7. お問い合わせ
@@ -118,7 +119,9 @@ privacy policy applies to Gumroad's processing.
 
 ### 6. Retention and Deletion
 
-Local data can be removed by resetting the Extension or uninstalling it.
+The Reset action restores user-editable settings such as blocked sites and
+time limits; it does not delete usage, trial, Premium, or license data.
+Uninstalling the Extension deletes all locally stored Extension data.
 When a license is invalid, refunded, disputed, or charged back, Premium is
 disabled and the stored license key is deleted.
 

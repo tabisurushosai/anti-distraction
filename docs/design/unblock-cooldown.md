@@ -32,7 +32,7 @@
 | `unblockCountByDate` | `Record<"YYYY-MM-DD", number>` | 日付ごとの解除回数 | **新規** |
 | `unblockMaxPerDayFree` | number | 無料時の上限。既定 3 | **新規（定数で可、storage に置く必要は無いがリセットで戻すために配置）** |
 | `unblockMaxPerDayPremium` | number | Premium 時の上限。既定 10 | **新規（同上）** |
-| `premium_unlocked` / `trial_start_ts` | — | Premium 判定（既存） | 既存 |
+| `premium_unlocked` / `premium_verified_at` / `premium_grace_until` / `trial_start_ts` | — | 検証済みPremiumまたはTrial判定 | 既存 |
 
 > 上限値は将来的に options から変えられるようにするため、定数ではなく storage に
 > 置く方針（既存 `cooldownSeconds` と同じ立場）。`DEFAULTS` に追加すること。
@@ -239,8 +239,8 @@ button.addEventListener("click", async () => {
 - 無料: 1 日 **3 回** までの解除。`cooldownSeconds` は 30 秒固定（変更しても 30 にクランプ）。
 - Premium: 1 日 **10 回**。`cooldownSeconds` は 5〜300 秒で自由に設定可。
 - 上記の判定は `isPremiumEffective(state, now)` を使用（T026 で実装済み、`src/lib/premium-status.ts`）。
-- Premium 解放後は即座に options UI の上限値表示も切替（`chrome.storage.onChanged`
-  で `premium_unlocked` を監視）。
+- Premium検証後は即座にoptions UIの上限値表示も切替（`chrome.storage.onChanged`
+  で`premium_unlocked`、`premium_verified_at`、`premium_grace_until`を監視）。
 - お試し期間（`trial_start_ts` から 7 日以内）も Premium 相当の上限を適用。
 
 ## アクセシビリティ

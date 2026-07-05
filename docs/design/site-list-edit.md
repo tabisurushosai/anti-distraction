@@ -14,7 +14,9 @@
 | --- | --- | --- |
 | `enabled` | boolean | リスト編集自体は `enabled` に依存しない（UI は常時操作可） |
 | `sites` | `string[]` | 正規化済みホスト配列。`tab-gray` / `time-limit` の判定キー |
-| `premium_unlocked` | boolean | Premium 解放フラグ |
+| `premium_unlocked` | boolean | Gumroad検証済みPremium候補フラグ |
+| `premium_verified_at` | number \| null | 最終検証日時 |
+| `premium_grace_until` | number \| null | Offline時のPremium猶予期限 |
 | `trial_start_ts` | number \| null | お試し期間開始時刻 |
 
 > `sites` は **配列順序を保持** する（UI 表示順 = 追加順）。同一ホスト重複は禁止。
@@ -155,7 +157,8 @@ function isCoveredByManifest(host: string): boolean {
 8. 範囲外警告: `example.org`（manifest matches 外）を追加すると `site-warning` に
    文言が表示される。`youtube.com` / `m.youtube.com` では出ない。
 9. Premium ゲート: 無料状態で 10 件追加した直後、追加ボタンが disabled になる。
-   `premium_unlocked = true` をセットすると即時に解放される。
+   `premium_unlocked = true`に加えて、有効な`premium_verified_at`と
+   `premium_grace_until`がある場合だけ解放される。
 10. 永続化: 「保存」押下後にページをリロードしても `sites` が維持されている。
 11. `tab-gray` / `time-limit` との整合: 保存直後に `hostMatches` が真を返すこと
     （手動チェック項目）。

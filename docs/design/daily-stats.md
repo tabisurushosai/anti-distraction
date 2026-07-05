@@ -23,7 +23,9 @@
 | `usageByDate` | `Record<"YYYY-MM-DD", number>` | 日付ごとの滞在ミリ秒。`time-limit` が `addUsageMs` で加算 |
 | `dailyLimitMinutes` | number | 1日上限（分）。残り時間 / バー表示に使う |
 | `enabled` | boolean | 無効時は「計測停止中」の注記を出す（数値は最後の値をそのまま表示） |
-| `premium_unlocked` | boolean | Premium 解放フラグ。履歴日数の上限切替 |
+| `premium_unlocked` | boolean | Gumroad検証済みPremium候補フラグ |
+| `premium_verified_at` | number \| null | 最終検証日時 |
+| `premium_grace_until` | number \| null | Offline時のPremium猶予期限 |
 | `trial_start_ts` | number \| null | お試し期間中なら Premium 相当の表示にする |
 
 > 本機能で新規追加するキーは **無し**。既存キーの読み取りと、`usageByDate`
@@ -82,8 +84,8 @@
 
 ### Premium ゲート
 - 無料: 直近 7 日。合計・平均・達成率まで。
-- Premium（`premium_unlocked === true` または `trial_start_ts` から 7 日以内）: 直近
-  30 日 + streak。
+- Premium（`premium_unlocked === true`、検証日時が未来でなく、猶予期限内）または
+  `trial_start_ts`から7日以内: 直近30日 + streak。
 - ゲート判定は **新規ヘルパ** `isPremiumEffective(state, now): boolean` を `src/lib/
   premium-status.ts` に切り出す（T031 で再利用する想定）。本タスクの設計範囲では
   シグネチャだけ確定し、実装は T026 で行う。
@@ -173,8 +175,8 @@
    `2h 5m`（en）。
 5. `computeStreak(summary, limit)` が現在連続・最長連続の双方を返し、上限 0 のとき
    `null` を返すこと。
-6. `isPremiumEffective` が `premium_unlocked === true` で常に true、
-   `trial_start_ts` から 7 日以内で true、それ以外で false を返すこと。
+6. `isPremiumEffective` が、検証済みPremiumの猶予期限内または
+   `trial_start_ts`から7日以内でtrue、それ以外でfalseを返すこと。
 7. options 画面の表行数が、Premium 状態によって 7 / 30 に切り替わること。
 8. popup のバーは `dailyLimitMinutes` 変更後に `chrome.storage.onChanged` 経由で
    再描画されること。

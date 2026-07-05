@@ -114,9 +114,14 @@ async function verifyWithGumroad(
   }
 
   if (!response.ok) {
+    const transient =
+      response.status === 408 ||
+      response.status === 425 ||
+      response.status === 429 ||
+      response.status >= 500;
     return {
       ok: false,
-      reason: response.status >= 500 ? "network-error" : "verification-failed",
+      reason: transient ? "network-error" : "verification-failed",
     };
   }
 
@@ -124,12 +129,18 @@ async function verifyWithGumroad(
   try {
     payload = await response.json();
   } catch {
-    return { ok: false, reason: "verification-failed" };
+    return { ok: false, reason: "network-error" };
   }
 
   const evaluation = evaluateGumroadResponse(payload, config.productId);
   if (!evaluation.valid) {
-    return { ok: false, reason: "verification-failed" };
+    return {
+      ok: false,
+      reason:
+        evaluation.reason === "invalid-response"
+          ? "network-error"
+          : "verification-failed",
+    };
   }
   return { ok: true, verifiedAt: options.now ?? Date.now() };
 }

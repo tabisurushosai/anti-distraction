@@ -213,6 +213,44 @@ test("stored license revalidation preserves only bounded offline access", async 
   assert.equal(state.premium_license_key, "KEY-1234");
 });
 
+test("transient HTTP failures preserve an existing license during grace", async () => {
+  for (const status of [408, 425, 429, 500, 503]) {
+    const verifiedAt = NOW - REVERIFY_INTERVAL_MS;
+    const { state } = installChromeStorage({
+      premium_unlocked: true,
+      premium_license_key: "KEY-1234",
+      premium_verified_at: verifiedAt,
+      premium_grace_until: verifiedAt + OFFLINE_GRACE_MS,
+    });
+    const result = await refreshStoredLicense({
+      config: CONFIG,
+      now: NOW,
+      fetchImpl: async () => jsonResponse({ success: false }, status),
+    });
+    assert.deepEqual(result, { kind: "offline-grace" });
+    assert.equal(state.premium_unlocked, true);
+    assert.equal(state.premium_license_key, "KEY-1234");
+  }
+});
+
+test("malformed successful response is treated as a transient failure", async () => {
+  const verifiedAt = NOW - REVERIFY_INTERVAL_MS;
+  const { state } = installChromeStorage({
+    premium_unlocked: true,
+    premium_license_key: "KEY-1234",
+    premium_verified_at: verifiedAt,
+    premium_grace_until: verifiedAt + OFFLINE_GRACE_MS,
+  });
+  const result = await refreshStoredLicense({
+    config: CONFIG,
+    now: NOW,
+    fetchImpl: async () => jsonResponse({ success: true }),
+  });
+  assert.deepEqual(result, { kind: "offline-grace" });
+  assert.equal(state.premium_unlocked, true);
+  assert.equal(state.premium_license_key, "KEY-1234");
+});
+
 test("refund or dispute revokes and clears a stored key", async () => {
   for (const field of ["refunded", "disputed", "chargebacked"]) {
     const { state } = installChromeStorage({

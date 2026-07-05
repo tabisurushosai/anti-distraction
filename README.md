@@ -18,7 +18,7 @@ A Chrome extension (Manifest V3) that grays out SNS / video tabs and enforces vi
 - **統計**: 今週の集中時間を記録
 - **ローカルファースト**: 閲覧履歴や利用統計の外部送信なし、広告なし
 - **Premium ($9 買い切り)**: 高度な統計、テーマ追加、エクスポート機能
-- **購入確認**: 入力されたライセンスキーだけを Gumroad へ送信して購入状態を確認
+- **購入確認**: 商品IDと入力されたライセンスキーを Gumroad へ送信して購入状態を確認
 
 ### インストール
 1. Chrome Web Store からインストール (申請準備済)
@@ -53,7 +53,7 @@ VITE_GUMROAD_PRODUCT_ID=... VITE_GUMROAD_CHECKOUT_URL=... npm run package
 - **Stats**: Tracks weekly focus time
 - **Local-first**: No browsing-history or usage-stat transmission, no ads
 - **Premium ($9 one-time)**: Advanced stats, extra themes, export features
-- **Purchase verification**: Only the entered license key is sent to Gumroad
+- **Purchase verification**: The product ID and entered license key are sent to Gumroad
 
 ### Install
 1. Install from the Chrome Web Store (submission ready)
