@@ -1,6 +1,6 @@
 # プライバシーポリシー / Privacy Policy
 
-最終更新日 / Last updated: 2026-07-05
+最終更新日 / Last updated: 2026-07-06
 
 ## 日本語
 
@@ -8,6 +8,8 @@
 
 「脱注意散漫」(以下「本拡張機能」) はローカルファーストで動作します。
 閲覧履歴、利用統計、設定を広告、分析、追跡のために収集または送信しません。
+Chrome APIから受け取る情報は、本拡張機能の利用時間制限機能を提供するためだけに使用し、
+Chrome Web Store User Data PolicyとLimited Use要件に従って取り扱います。
 
 ### 2. ブラウザ内に保存する情報
 
@@ -19,7 +21,8 @@
 - 利用者が入力したGumroadライセンスキー
 - ライセンスの最終確認日時とオフライン猶予期限
 
-これらは設定のExportへ含めません。
+設定のExportには、対象サイト、時間制限、外観、クールダウン設定だけを含めます。
+利用統計、解除回数、Trial、Premium、License情報は含めません。
 
 ### 3. Gumroadへ送信する情報
 
@@ -69,6 +72,9 @@ Gumroadによる情報処理にはGumroadのプライバシーポリシーが適
 Anti-Distraction (the "Extension") is local-first. It does not collect or
 transmit browsing history, usage statistics, or settings for advertising,
 analytics, or tracking.
+Information received through Chrome APIs is used only to provide the
+Extension's site-usage limiting features and is handled in accordance with the
+Chrome Web Store User Data Policy, including its Limited Use requirements.
 
 ### 2. Data Stored in the Browser
 
@@ -81,7 +87,9 @@ its features:
 - The Gumroad license key entered by the user
 - Last license verification time and offline-grace expiry
 
-This information is excluded from settings exports.
+Settings exports include only sites, time limits, appearance, and cooldown
+settings. They exclude usage statistics, unblock counts, trial, Premium, and
+license information.
 
 ### 3. Data Sent to Gumroad
 
