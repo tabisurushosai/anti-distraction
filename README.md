@@ -10,14 +10,13 @@ A Chrome extension (Manifest V3) that grays out SNS / video tabs and enforces vi
 
 ### 主な機能
 - **タブ灰色化**: YouTube / Twitter (X) / Instagram / Facebook / TikTok を CSS フィルタで灰色化し視覚的誘惑を減らす
-- **滞在時間制限**: 1 日のサイト滞在時間に上限を設定、超過でブロック画面を表示
-- **集中モード**: 任意の時間帯にブロックを強制 (15 分〜数時間)
-- **クールダウン**: 一度集中モードを開始したら短時間では解除できないようロック
-- **ホワイトリスト**: 業務利用などで例外にしたい URL を登録
-- **励ましメッセージ**: ブロック画面に表示
-- **統計**: 今週の集中時間を記録
-- **ローカルファースト**: 閲覧履歴や利用統計の外部送信なし、広告なし
-- **Premium ($9 買い切り)**: 高度な統計、テーマ追加、エクスポート機能
+- **滞在時間制限**: 1日と1セッションの上限を設定し、超過時にブロック画面を表示
+- **対象サイト編集**: 制限するサイトを追加・削除
+- **一時解除**: 回数上限と再解除までのクールダウンを適用
+- **統計**: 最近7日間のサイト利用時間を端末内で記録
+- **設定バックアップ**: 対象サイト、時間制限、外観、クールダウンをJSONで保存・復元
+- **ローカルファースト**: 閲覧履歴を収集せず、設定と利用統計の外部送信なし、広告なし
+- **Premium ($9 買い切り)**: 30日統計、連続達成日数、サイト数と一時解除の上限拡張
 - **購入確認**: 商品IDと入力されたライセンスキーを Gumroad へ送信して購入状態を確認
 
 ### インストール
@@ -25,9 +24,9 @@ A Chrome extension (Manifest V3) that grays out SNS / video tabs and enforces vi
 2. または開発版: `git clone` → `npm install` → `npm run build` → `chrome://extensions` で `dist/` を「パッケージ化されていない拡張機能を読み込む」
 
 ### 使用例
-- **作業中の SNS 遮断**: 集中モードを 25 分でセット → ポモドーロ用途
-- **試験勉強モード**: クールダウン 60 分 + ブロックリスト全部入り
-- **就寝前のスマホ・PC 利用制限**: 夜 23 時以降は YouTube ブロック
+- **作業中のSNS制限**: 1セッションの上限を設定して長時間利用を防ぐ
+- **試験勉強**: 対象サイトを追加し、一時解除後のクールダウンを設定
+- **毎日の利用管理**: 1日の上限と最近の利用統計を確認
 
 ### 開発
 ```bash
@@ -45,14 +44,13 @@ VITE_GUMROAD_PRODUCT_ID=... VITE_GUMROAD_CHECKOUT_URL=... npm run package
 
 ### Features
 - **Tab gray-out**: YouTube / Twitter (X) / Instagram / Facebook / TikTok rendered with a CSS filter to reduce visual temptation
-- **Time limit**: Cap daily time spent on each site; show a block screen when exceeded
-- **Focus mode**: Force-block sites for a chosen duration (15 min – several hours)
-- **Cooldown**: Once focus mode starts, it can't be disabled for a configurable period
-- **Whitelist**: Allow specific URLs (work tabs, etc.) to bypass the block
-- **Encouragement messages**: Shown on the block screen
-- **Stats**: Tracks weekly focus time
-- **Local-first**: No browsing-history or usage-stat transmission, no ads
-- **Premium ($9 one-time)**: Advanced stats, extra themes, export features
+- **Time limits**: Set daily and per-session limits; show a block screen when exceeded
+- **Site list**: Add or remove sites to limit
+- **Temporary unblock**: Apply a daily allowance and cooldown between requests
+- **Stats**: Track the last seven days of site usage locally
+- **Settings backup**: Export and restore sites, limits, appearance, and cooldown settings as JSON
+- **Local-first**: No browsing-history collection or usage-stat transmission, no ads
+- **Premium ($9 one-time)**: 30-day stats, streaks, unlimited sites, and higher temporary-unblock limits
 - **Purchase verification**: The product ID and entered license key are sent to Gumroad
 
 ### Install
@@ -60,9 +58,9 @@ VITE_GUMROAD_PRODUCT_ID=... VITE_GUMROAD_CHECKOUT_URL=... npm run package
 2. Or dev build: `git clone` → `npm install` → `npm run build` → load `dist/` as unpacked at `chrome://extensions`
 
 ### Usage examples
-- **Block SNS during work**: Focus mode 25 min → Pomodoro pattern
-- **Study mode**: 60 min cooldown + full block list
-- **Pre-sleep limits**: Block YouTube after 23:00
+- **Limit social media during work**: Set a per-session limit to prevent long visits
+- **Study sessions**: Add distracting sites and configure the temporary-unblock cooldown
+- **Daily usage management**: Set a daily limit and review recent usage
 
 ### Develop
 ```bash
