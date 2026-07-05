@@ -6,3 +6,6 @@ logs/
 *.bak
 *.tmp
 .vite/
+.env
+.env.*
+!.env.example
