@@ -4,14 +4,28 @@ const productId = process.env.VITE_GUMROAD_PRODUCT_ID?.trim() ?? "";
 const checkoutUrl = process.env.VITE_GUMROAD_CHECKOUT_URL?.trim() ?? "";
 const errors = [];
 
-if (productId.length === 0 || productId.includes("REPLACE_")) {
-  errors.push("VITE_GUMROAD_PRODUCT_ID is missing or still a placeholder");
+if (
+  productId.length < 8 ||
+  /REPLACE_|PLACEHOLDER|TEST[-_]?PRODUCT|EXAMPLE/i.test(productId)
+) {
+  errors.push("VITE_GUMROAD_PRODUCT_ID is missing, invalid, or still a placeholder");
 }
 
 try {
   const parsed = new URL(checkoutUrl);
-  if (parsed.protocol !== "https:" || checkoutUrl.includes("REPLACE_")) {
-    errors.push("VITE_GUMROAD_CHECKOUT_URL must be a release HTTPS URL");
+  const gumroadHost =
+    parsed.hostname === "gumroad.com" ||
+    parsed.hostname.endsWith(".gumroad.com");
+  const productPath = /^\/l\/[^/]+\/?$/.test(parsed.pathname);
+  if (
+    parsed.protocol !== "https:" ||
+    !gumroadHost ||
+    !productPath ||
+    /REPLACE_|PLACEHOLDER|EXAMPLE/i.test(checkoutUrl)
+  ) {
+    errors.push(
+      "VITE_GUMROAD_CHECKOUT_URL must be a release Gumroad HTTPS product URL",
+    );
   }
 } catch {
   errors.push("VITE_GUMROAD_CHECKOUT_URL is missing or invalid");
