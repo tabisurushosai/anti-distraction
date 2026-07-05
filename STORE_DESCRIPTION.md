@@ -1,13 +1,17 @@
-# ストア掲載情報 - anti-distraction
+# ストア掲載情報 - Anti-Distraction
 
-## 名前
+## 日本語
+
+### 名前
+
 Anti-Distraction — 集中モードでサイト遮断
 
-## 概要 (132字)
-SNS や動画サイトを集中モード中に遮断。タイマーと連動して作業中の誘惑を断つ。クールダウン期間設定可。
-Block SNS/video sites during focus mode. Timer-linked distraction blocker with cooldown.
+### 概要
 
-## 詳細説明
+SNSや動画サイトを集中モード中に遮断。時間制限、解除クールダウン、利用統計で作業への集中を支援します。
+
+### 詳細説明
+
 作業中の SNS や動画サイトの誘惑を断つ Chrome 拡張機能です。
 
 【主な機能】
@@ -27,10 +31,52 @@ Block SNS/video sites during focus mode. Timer-linked distraction blocker with c
 
 【プライバシー】
 閲覧履歴と利用統計は端末内だけに保存し、広告は表示しません。
-Premium は $9 買い切りです。購入確認時だけ、入力したライセンスキーを Gumroad へ送信します。
+Premium は $9 買い切りです。購入確認時だけ、公開された商品IDと入力したライセンスキーを
+Gumroadへ送信します。
 
-## カテゴリ
+### カテゴリ
+
 Productivity
 
-## プライバシーポリシー URL
+### プライバシーポリシー URL
+
+https://github.com/tabisurushosai/anti-distraction/blob/main/legal/PRIVACY.md
+
+## English
+
+### Name
+
+Anti-Distraction — Focus Mode Site Blocker
+
+### Summary
+
+Block distracting social and video sites with focus limits, cooldowns, and local activity stats.
+
+### Detailed description
+
+Anti-Distraction is a Chrome extension that helps you stay focused by limiting
+access to distracting social and video sites while you work.
+
+Key features:
+
+- Choose which sites to limit.
+- Set daily and per-session time limits.
+- Use a cooldown before temporarily unblocking a site.
+- See your recent focus activity.
+- Keep browsing settings and usage statistics on your device.
+
+Premium is a one-time $9 purchase that adds extended statistics, additional
+themes, exports, and higher limits. Payment is processed by Gumroad. Only the
+public product ID and the license key you enter are sent to Gumroad for purchase
+verification.
+
+Anti-Distraction has no advertising. It does not send browsing URLs, blocked
+site lists, or usage statistics to Gumroad.
+
+### Category
+
+Productivity
+
+### Privacy policy URL
+
 https://github.com/tabisurushosai/anti-distraction/blob/main/legal/PRIVACY.md
