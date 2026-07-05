@@ -7,7 +7,8 @@
 ### 1. 基本方針
 
 「脱注意散漫」(以下「本拡張機能」) はローカルファーストで動作します。
-閲覧履歴、利用統計、設定を広告、分析、追跡のために収集または送信しません。
+閲覧履歴は収集しません。端末内に保存する利用統計と設定を、広告、外部分析、
+追跡のために送信しません。
 Chrome APIから受け取る情報は、本拡張機能の利用時間制限機能を提供するためだけに使用し、
 Chrome Web Store User Data PolicyとLimited Use要件に従って取り扱います。
 
@@ -48,12 +49,12 @@ Gumroadによる情報処理にはGumroadのプライバシーポリシーが適
 - 対象サイトのHost権限：灰色化と制限画面の表示
 - `https://api.gumroad.com/*`：利用者が入力したLicenseの確認
 
-### 5. 収集しない情報
+### 5. 収集または外部送信しない情報
 
 - 氏名、住所、電話番号
 - 閲覧履歴、検索履歴、Cookie
 - 閲覧URLの外部送信
-- 利用統計、Crash Report、広告識別子、Telemetry
+- 利用統計の外部Analytics送信、Crash Report、広告識別子、Telemetry
 
 ### 6. 保存期間と削除
 
@@ -69,9 +70,9 @@ Gumroadによる情報処理にはGumroadのプライバシーポリシーが適
 
 ### 1. Overview
 
-Anti-Distraction (the "Extension") is local-first. It does not collect or
-transmit browsing history, usage statistics, or settings for advertising,
-analytics, or tracking.
+Anti-Distraction (the "Extension") is local-first. It does not collect browsing
+history. It does not transmit locally stored usage statistics or settings for
+advertising, external analytics, or tracking.
 Information received through Chrome APIs is used only to provide the
 Extension's site-usage limiting features and is handled in accordance with the
 Chrome Web Store User Data Policy, including its Limited Use requirements.
@@ -118,12 +119,13 @@ privacy policy applies to Gumroad's processing.
 - Target-site host access: Apply grayscale and the limit screen
 - `https://api.gumroad.com/*`: Verify a user-entered license
 
-### 5. Data We Do Not Collect
+### 5. Data We Do Not Collect or Transmit
 
 - Name, address, or phone number
 - Browsing history, search history, or cookies
 - External transmission of visited URLs
-- Usage analytics, crash reports, advertising identifiers, or telemetry
+- External analytics transmission of usage statistics, crash reports,
+  advertising identifiers, or telemetry
 
 ### 6. Retention and Deletion
 
