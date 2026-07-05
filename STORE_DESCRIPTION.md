@@ -17,7 +17,7 @@ Block SNS/video sites during focus mode. Timer-linked distraction blocker with c
 - ホワイトリスト機能
 - 集中モード時のブロック画面 (励ましのメッセージ表示)
 - 統計機能 (今週の集中時間を記録)
-- 完全オフライン、データ送信なし
+- 閲覧履歴と利用統計は端末内だけに保存
 
 【こんな人にオススメ】
 - SNS のスクロールが止まらない方
@@ -26,7 +26,8 @@ Block SNS/video sites during focus mode. Timer-linked distraction blocker with c
 - リモートワークで集中したい方
 
 【プライバシー】
-データは端末内のみ。広告なし。完全無料 (Premium のみ $3 買い切り)。
+閲覧履歴と利用統計は端末内だけに保存し、広告は表示しません。
+Premium は $9 買い切りです。購入確認時だけ、入力したライセンスキーを Gumroad へ送信します。
 
 ## カテゴリ
 Productivity

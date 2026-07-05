@@ -1,96 +1,255 @@
 /**
- * @file Side-effectful counterparts of `lib/upgrade.ts`: read/write the
- * install id, open the Stripe checkout tab, persist the premium flag on
- * successful return, and apply manually entered license codes.
+ * @file Gumroad checkout and license verification. Premium is granted only
+ * after a successful server response and is bounded by an offline grace.
  */
 
-import { setValue } from "./storage";
+import { getValues, setValues, type StorageSchema } from "./storage.ts";
 import {
   DEFAULT_CONFIG,
+  OFFLINE_GRACE_MS,
   buildCheckoutUrl,
-  classifyReturnUrl,
-  generateInstallId,
+  evaluateGumroadResponse,
+  isUpgradeConfigured,
   isValidLicenseCode,
-  type UnlockResult,
+  isWithinOfflineGrace,
+  normalizeLicenseCode,
+  shouldReverify,
   type UpgradeConfig,
-} from "./lib/upgrade";
+} from "./lib/upgrade.ts";
 
 export {
   DEFAULT_CONFIG,
-  RETURN_URL_PATTERNS,
-  STRIPE_CHECKOUT_URL,
-  UNLOCK_PARAM,
+  GUMROAD_CHECKOUT_URL,
+  GUMROAD_PRODUCT_ID,
+  GUMROAD_VERIFY_URL,
+  OFFLINE_GRACE_MS,
+  REVERIFY_INTERVAL_MS,
   buildCheckoutUrl,
-  classifyReturnUrl,
-  generateInstallId,
-  isReturnUrl,
+  evaluateGumroadResponse,
+  isUpgradeConfigured,
   isValidLicenseCode,
-  parseUnlockToken,
-  type UnlockResult,
+  isWithinOfflineGrace,
+  normalizeLicenseCode,
+  shouldReverify,
+  type LicenseEvaluation,
+  type LicenseRejectionReason,
   type UpgradeConfig,
-} from "./lib/upgrade";
+} from "./lib/upgrade.ts";
 
-const INSTALL_ID_KEY = "install_id";
+export type UnlockFailureReason =
+  | "invalid-token"
+  | "verification-failed"
+  | "network-error"
+  | "config-error"
+  | "storage-error";
 
-/** Returns the persisted install id, lazily generating and storing one on first use. */
-export async function getInstallId(): Promise<string> {
-  try {
-    const data = await chrome.storage.local.get(INSTALL_ID_KEY);
-    const existing = data[INSTALL_ID_KEY];
-    if (typeof existing === "string" && existing.length > 0) return existing;
-    const fresh = generateInstallId();
-    await chrome.storage.local.set({ [INSTALL_ID_KEY]: fresh });
-    return fresh;
-  } catch {
-    return generateInstallId();
-  }
-}
+export type UnlockResult =
+  | { ok: true; verifiedAt: number }
+  | { ok: false; reason: UnlockFailureReason };
 
-/** Opens the Stripe checkout page in a new tab with the install id attached. */
+export type RefreshResult =
+  | { kind: "no-license" }
+  | { kind: "fresh" }
+  | { kind: "verified" }
+  | { kind: "offline-grace" }
+  | { kind: "revoked"; reason: "verification-failed" | "grace-expired" }
+  | { kind: "error"; reason: "config-error" | "storage-error" };
+
+type StoredPremium = Pick<
+  StorageSchema,
+  | "premium_unlocked"
+  | "premium_license_key"
+  | "premium_verified_at"
+  | "premium_grace_until"
+>;
+
+type VerifyOptions = {
+  config?: UpgradeConfig;
+  fetchImpl?: typeof fetch;
+  now?: number;
+};
+
+/** Opens the public Gumroad product page. No install or user ID is attached. */
 export async function startCheckout(
   config: UpgradeConfig = DEFAULT_CONFIG,
 ): Promise<string> {
-  const installId = await getInstallId();
-  const url = buildCheckoutUrl(installId, config);
-  try {
-    await chrome.tabs.create({ url });
-  } catch {
-    /* fail-safe: caller still receives the URL string for fallback handling */
-  }
+  const url = buildCheckoutUrl(config);
+  await chrome.tabs.create({ url });
   return url;
 }
 
-/** Flips `premium_unlocked` to true in storage. */
-export async function unlockPremium(): Promise<void> {
-  await setValue("premium_unlocked", true);
+async function verifyWithGumroad(
+  code: string,
+  options: VerifyOptions = {},
+): Promise<UnlockResult> {
+  const config = options.config ?? DEFAULT_CONFIG;
+  if (!isUpgradeConfigured(config)) {
+    return { ok: false, reason: "config-error" };
+  }
+  if (!isValidLicenseCode(code)) {
+    return { ok: false, reason: "invalid-token" };
+  }
+
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const body = new URLSearchParams({
+    product_id: config.productId,
+    license_key: normalizeLicenseCode(code),
+    increment_uses_count: "false",
+  });
+
+  let response: Response;
+  try {
+    response = await fetchImpl(config.verifyUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+      },
+      body,
+      cache: "no-store",
+      credentials: "omit",
+      referrerPolicy: "no-referrer",
+    });
+  } catch {
+    return { ok: false, reason: "network-error" };
+  }
+
+  if (!response.ok) {
+    return {
+      ok: false,
+      reason: response.status >= 500 ? "network-error" : "verification-failed",
+    };
+  }
+
+  let payload: unknown;
+  try {
+    payload = await response.json();
+  } catch {
+    return { ok: false, reason: "verification-failed" };
+  }
+
+  const evaluation = evaluateGumroadResponse(payload, config.productId);
+  if (!evaluation.valid) {
+    return { ok: false, reason: "verification-failed" };
+  }
+  return { ok: true, verifiedAt: options.now ?? Date.now() };
 }
 
-/**
- * Inspects a navigated-to URL and, if it is a valid checkout return URL
- * carrying a valid token, unlocks premium. Returns a structured outcome
- * instead of throwing so callers can surface a localized message.
- */
-export async function handleReturnUrl(
-  rawUrl: string,
-  config: UpgradeConfig = DEFAULT_CONFIG,
+async function persistVerifiedLicense(
+  code: string,
+  verifiedAt: number,
+): Promise<void> {
+  await setValues({
+    premium_unlocked: true,
+    premium_license_key: normalizeLicenseCode(code),
+    premium_verified_at: verifiedAt,
+    premium_grace_until: verifiedAt + OFFLINE_GRACE_MS,
+  });
+}
+
+async function revokePremium(clearLicense: boolean): Promise<void> {
+  const patch: Parameters<typeof setValues>[0] = {
+    premium_unlocked: false,
+    premium_verified_at: null,
+    premium_grace_until: null,
+  };
+  if (clearLicense) patch.premium_license_key = null;
+  await setValues(patch);
+}
+
+/** Verifies a user-entered key before persisting any Premium entitlement. */
+export async function applyLicenseCode(
+  code: string,
+  options: VerifyOptions = {},
 ): Promise<UnlockResult> {
-  const outcome = classifyReturnUrl(rawUrl, config);
-  if (outcome.kind === "ignore") return { ok: false, reason: outcome.reason };
+  const result = await verifyWithGumroad(code, options);
+  if (!result.ok) return result;
   try {
-    await unlockPremium();
-    return { ok: true };
+    await persistVerifiedLicense(code, result.verifiedAt);
+    return result;
   } catch {
     return { ok: false, reason: "storage-error" };
   }
 }
 
-/** Validates a manually entered license code and unlocks premium on success. */
-export async function applyLicenseCode(code: string): Promise<UnlockResult> {
-  if (!isValidLicenseCode(code)) return { ok: false, reason: "invalid-token" };
+/**
+ * Refreshes a stored license every seven days. Network failures preserve a
+ * previously verified entitlement only until its fourteen-day grace expires.
+ */
+export async function refreshStoredLicense(
+  options: VerifyOptions = {},
+): Promise<RefreshResult> {
+  const now = options.now ?? Date.now();
+  let stored: StoredPremium;
   try {
-    await unlockPremium();
-    return { ok: true };
+    stored = await getValues([
+      "premium_unlocked",
+      "premium_license_key",
+      "premium_verified_at",
+      "premium_grace_until",
+    ] as const);
   } catch {
-    return { ok: false, reason: "storage-error" };
+    return { kind: "error", reason: "storage-error" };
+  }
+
+  if (!stored.premium_license_key) {
+    if (
+      stored.premium_unlocked ||
+      stored.premium_verified_at !== null ||
+      stored.premium_grace_until !== null
+    ) {
+      try {
+        await revokePremium(true);
+      } catch {
+        return { kind: "error", reason: "storage-error" };
+      }
+    }
+    return { kind: "no-license" };
+  }
+
+  if (
+    !shouldReverify(stored.premium_verified_at, now) &&
+    isWithinOfflineGrace(stored.premium_grace_until, now)
+  ) {
+    return { kind: "fresh" };
+  }
+
+  const result = await verifyWithGumroad(stored.premium_license_key, {
+    ...options,
+    now,
+  });
+  if (result.ok) {
+    try {
+      await persistVerifiedLicense(
+        stored.premium_license_key,
+        result.verifiedAt,
+      );
+      return { kind: "verified" };
+    } catch {
+      return { kind: "error", reason: "storage-error" };
+    }
+  }
+
+  if (
+    result.reason === "network-error" ||
+    result.reason === "config-error"
+  ) {
+    if (isWithinOfflineGrace(stored.premium_grace_until, now)) {
+      return result.reason === "config-error"
+        ? { kind: "error", reason: "config-error" }
+        : { kind: "offline-grace" };
+    }
+    try {
+      await revokePremium(false);
+      return { kind: "revoked", reason: "grace-expired" };
+    } catch {
+      return { kind: "error", reason: "storage-error" };
+    }
+  }
+
+  try {
+    await revokePremium(true);
+    return { kind: "revoked", reason: "verification-failed" };
+  } catch {
+    return { kind: "error", reason: "storage-error" };
   }
 }

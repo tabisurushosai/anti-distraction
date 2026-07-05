@@ -10,20 +10,34 @@ import {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const NOW = Date.UTC(2026, 4, 17, 12, 0, 0);
+const PURCHASED = {
+  premium_unlocked: true,
+  premium_verified_at: NOW - DAY_MS,
+  premium_grace_until: NOW + DAY_MS,
+  trial_start_ts: null,
+};
 
 // ---------- isPremiumEffective ----------
 
-test("isPremiumEffective: premium_unlocked=true returns true regardless of trial", () => {
+test("isPremiumEffective: verified purchase returns true regardless of trial", () => {
+  assert.equal(isPremiumEffective(PURCHASED, NOW), true);
+  assert.equal(isPremiumEffective({ ...PURCHASED, trial_start_ts: NOW - 100 * DAY_MS }, NOW), true);
+});
+
+test("isPremiumEffective: local flag without verification is false", () => {
   assert.equal(
     isPremiumEffective({ premium_unlocked: true, trial_start_ts: null }, NOW),
-    true,
+    false,
   );
   assert.equal(
     isPremiumEffective(
-      { premium_unlocked: true, trial_start_ts: NOW - 100 * DAY_MS },
+      {
+        ...PURCHASED,
+        premium_grace_until: NOW - 1,
+      },
       NOW,
     ),
-    true,
+    false,
   );
 });
 
@@ -82,11 +96,8 @@ test("isPremiumEffective: non-finite trial_start_ts returns false", () => {
 
 // ---------- trialDaysLeft ----------
 
-test("trialDaysLeft: premium_unlocked=true returns null", () => {
-  assert.equal(
-    trialDaysLeft({ premium_unlocked: true, trial_start_ts: null }, NOW),
-    null,
-  );
+test("trialDaysLeft: verified purchase returns null", () => {
+  assert.equal(trialDaysLeft(PURCHASED, NOW), null);
 });
 
 test("trialDaysLeft: null trial_start_ts returns full TRIAL_DAYS", () => {
@@ -128,13 +139,14 @@ test("trialDaysLeft: non-finite trial_start_ts returns TRIAL_DAYS", () => {
 
 // ---------- isPremiumPurchased ----------
 
-test("isPremiumPurchased: true only when premium_unlocked=true", () => {
+test("isPremiumPurchased: requires flag and valid verification window", () => {
+  assert.equal(isPremiumPurchased(PURCHASED, NOW), true);
   assert.equal(
-    isPremiumPurchased({ premium_unlocked: true, trial_start_ts: null }),
-    true,
+    isPremiumPurchased({ premium_unlocked: false, trial_start_ts: NOW }, NOW),
+    false,
   );
   assert.equal(
-    isPremiumPurchased({ premium_unlocked: false, trial_start_ts: NOW }),
+    isPremiumPurchased({ premium_unlocked: true, trial_start_ts: null }, NOW),
     false,
   );
 });

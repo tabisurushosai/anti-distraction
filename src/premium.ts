@@ -17,13 +17,20 @@ import {
 
 export { TRIAL_DAYS, type PremiumState };
 
-const PREMIUM_KEYS = ["premium_unlocked", "trial_start_ts"] as const;
+const PREMIUM_KEYS = [
+  "premium_unlocked",
+  "premium_verified_at",
+  "premium_grace_until",
+  "trial_start_ts",
+] as const;
 
 /** Snapshots the premium-related keys from storage. */
 export async function getPremiumState(): Promise<PremiumState> {
   const values = await getValues(PREMIUM_KEYS);
   return {
     premium_unlocked: values.premium_unlocked,
+    premium_verified_at: values.premium_verified_at,
+    premium_grace_until: values.premium_grace_until,
     trial_start_ts: values.trial_start_ts,
   };
 }
@@ -41,15 +48,10 @@ export async function ensureTrialStarted(now: number = Date.now()): Promise<numb
   return now;
 }
 
-/** Flips the persisted premium-unlocked flag to true. */
-export async function unlockPremium(): Promise<void> {
-  await setValue("premium_unlocked", true);
-}
-
 /** True only when the user has actually purchased premium (ignores trial). */
-export async function isPremium(): Promise<boolean> {
+export async function isPremium(now: number = Date.now()): Promise<boolean> {
   const state = await getPremiumState();
-  return isPremiumPurchasedPure(state);
+  return isPremiumPurchasedPure(state, now);
 }
 
 /** True while the trial window is open. */
@@ -84,7 +86,7 @@ export async function getPremiumStatus(now: number = Date.now()): Promise<Premiu
   const state = await getPremiumState();
   return {
     state,
-    isPremium: isPremiumPurchasedPure(state),
+    isPremium: isPremiumPurchasedPure(state, now),
     isTrial: isTrialActivePure(state, now),
     isPremiumEffective: isPremiumEffectivePure(state, now),
     trialDaysLeft: trialDaysLeftPure(state, now),
@@ -93,10 +95,18 @@ export async function getPremiumStatus(now: number = Date.now()): Promise<Premiu
 
 /** Narrows a storage snapshot to just the fields `PremiumState` needs. */
 export function premiumStateFromStorage(
-  values: Pick<StorageSchema, "premium_unlocked" | "trial_start_ts">,
+  values: Pick<
+    StorageSchema,
+    | "premium_unlocked"
+    | "premium_verified_at"
+    | "premium_grace_until"
+    | "trial_start_ts"
+  >,
 ): PremiumState {
   return {
     premium_unlocked: values.premium_unlocked,
+    premium_verified_at: values.premium_verified_at,
+    premium_grace_until: values.premium_grace_until,
     trial_start_ts: values.trial_start_ts,
   };
 }

@@ -162,7 +162,7 @@
     "description": "Reset button"
   },
   "options_upgrade_premium": {
-    "message": "Upgrade to Premium ($3)",
+    "message": "Upgrade to Premium ($9)",
     "description": "Premium upgrade button"
   },
   "options_trial_remaining": {
@@ -340,7 +340,7 @@
     }
   },
   "options_premium_note": {
-    "message": "Payment is processed via Stripe Checkout. Premium unlocks automatically after purchase.",
+    "message": "Payment is processed by Gumroad. After purchase, enter the license key from your receipt.",
     "description": "Premium purchase note"
   },
   "options_license_label": {
@@ -356,8 +356,8 @@
     "description": "Apply license code button"
   },
   "options_license_invalid": {
-    "message": "The code format is invalid.",
-    "description": "License code format error"
+    "message": "This license could not be verified.",
+    "description": "Invalid or revoked license"
   },
   "options_license_applied": {
     "message": "Premium is now active.",
@@ -366,6 +366,18 @@
   "options_license_storage_error": {
     "message": "Failed to save. Please try again.",
     "description": "Storage failure on applying license"
+  },
+  "options_license_network_error": {
+    "message": "Could not reach Gumroad. Check your connection and try again.",
+    "description": "Network failure while verifying a license"
+  },
+  "options_license_config_error": {
+    "message": "Purchases are not configured in this build.",
+    "description": "Missing Gumroad product configuration"
+  },
+  "options_checkout_error": {
+    "message": "Could not open the purchase page. Please try again.",
+    "description": "Checkout page open failure"
   },
   "aria_new_site_input": {
     "message": "Target site hostname",

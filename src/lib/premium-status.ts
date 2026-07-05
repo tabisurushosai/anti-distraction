@@ -4,19 +4,36 @@
  * pure so the predicates can be unit-tested without chrome.storage.
  */
 
-/** Snapshot of the two storage keys that drive premium-effective behavior. */
+/** Snapshot of storage keys that drive Premium and trial behavior. */
 export type PremiumState = {
   premium_unlocked: boolean;
   trial_start_ts: number | null;
+  premium_verified_at?: number | null;
+  premium_grace_until?: number | null;
 };
 
 /** Length of the post-install free trial in days. */
 export const TRIAL_DAYS = 7;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** True only when a license/purchase has been applied (ignores trial). */
-export function isPremiumPurchased(state: PremiumState): boolean {
-  return state.premium_unlocked === true;
+/** True only while a server-verified purchase is inside its bounded grace. */
+export function isPremiumPurchased(
+  state: PremiumState,
+  now: number = Date.now(),
+): boolean {
+  if (state.premium_unlocked !== true) return false;
+  if (
+    typeof state.premium_verified_at !== "number" ||
+    !Number.isFinite(state.premium_verified_at) ||
+    state.premium_verified_at > now
+  ) {
+    return false;
+  }
+  return (
+    typeof state.premium_grace_until === "number" &&
+    Number.isFinite(state.premium_grace_until) &&
+    now <= state.premium_grace_until
+  );
 }
 
 /** True when a trial has been started and the `TRIAL_DAYS` window has not elapsed. */
@@ -30,7 +47,7 @@ export function isTrialActive(state: PremiumState, now: number = Date.now()): bo
 
 /** True when premium features should be available (purchase OR active trial). */
 export function isPremiumEffective(state: PremiumState, now: number = Date.now()): boolean {
-  if (isPremiumPurchased(state)) return true;
+  if (isPremiumPurchased(state, now)) return true;
   return isTrialActive(state, now);
 }
 
@@ -40,7 +57,7 @@ export function isPremiumEffective(state: PremiumState, now: number = Date.now()
  * non-negative integer otherwise.
  */
 export function trialDaysLeft(state: PremiumState, now: number = Date.now()): number | null {
-  if (state.premium_unlocked === true) return null;
+  if (isPremiumPurchased(state, now)) return null;
   if (typeof state.trial_start_ts !== "number" || !Number.isFinite(state.trial_start_ts)) {
     return TRIAL_DAYS;
   }

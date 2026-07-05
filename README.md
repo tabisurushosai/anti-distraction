@@ -16,8 +16,9 @@ A Chrome extension (Manifest V3) that grays out SNS / video tabs and enforces vi
 - **ホワイトリスト**: 業務利用などで例外にしたい URL を登録
 - **励ましメッセージ**: ブロック画面に表示
 - **統計**: 今週の集中時間を記録
-- **完全オフライン**: データ送信なし、広告なし
-- **Premium ($3 買い切り)**: 高度な統計、テーマ追加、エクスポート機能
+- **ローカルファースト**: 閲覧履歴や利用統計の外部送信なし、広告なし
+- **Premium ($9 買い切り)**: 高度な統計、テーマ追加、エクスポート機能
+- **購入確認**: 入力されたライセンスキーだけを Gumroad へ送信して購入状態を確認
 
 ### インストール
 1. Chrome Web Store からインストール (申請準備済)
@@ -34,7 +35,8 @@ npm install     # 依存インストール
 npm run lint    # 型チェック (tsc --noEmit)
 npm run build   # vite で dist/ にビルド
 npm run test    # node:test で単体テスト
-npm run package # release/anti-distraction.zip を生成
+VITE_GUMROAD_PRODUCT_ID=... VITE_GUMROAD_CHECKOUT_URL=... npm run package
+                # 公開設定を検査して release/anti-distraction.zip を生成
 ```
 
 ---
@@ -49,8 +51,9 @@ npm run package # release/anti-distraction.zip を生成
 - **Whitelist**: Allow specific URLs (work tabs, etc.) to bypass the block
 - **Encouragement messages**: Shown on the block screen
 - **Stats**: Tracks weekly focus time
-- **Fully offline**: No data transmission, no ads
-- **Premium ($3 one-time)**: Advanced stats, extra themes, export features
+- **Local-first**: No browsing-history or usage-stat transmission, no ads
+- **Premium ($9 one-time)**: Advanced stats, extra themes, export features
+- **Purchase verification**: Only the entered license key is sent to Gumroad
 
 ### Install
 1. Install from the Chrome Web Store (submission ready)
@@ -67,7 +70,8 @@ npm install     # install deps
 npm run lint    # type check (tsc --noEmit)
 npm run build   # build to dist/ with vite
 npm run test    # unit tests via node:test
-npm run package # create release/anti-distraction.zip
+VITE_GUMROAD_PRODUCT_ID=... VITE_GUMROAD_CHECKOUT_URL=... npm run package
+                # validate release config and create release/anti-distraction.zip
 ```
 
 ---
