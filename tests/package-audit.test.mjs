@@ -44,7 +44,7 @@ function createPackage(mutate = () => {}) {
     host_permissions: ["https://api.gumroad.com/*"],
     content_scripts: [
       {
-        matches: expectedMatches,
+        matches: [...expectedMatches],
         js: ["content.js"],
       },
     ],
@@ -96,6 +96,16 @@ function audit(zip, overrides = {}) {
   });
 }
 
+function auditFailure(zip, overrides = {}) {
+  try {
+    audit(zip, overrides);
+  } catch (error) {
+    assert.equal(typeof error.stderr, "string");
+    return error.stderr;
+  }
+  assert.fail("package audit unexpectedly passed");
+}
+
 function withPackage(mutate, callback) {
   const fixture = createPackage(mutate);
   try {
@@ -116,7 +126,7 @@ test("package audit rejects optional permissions and host permissions", () => {
     withPackage(({ manifest }) => {
       manifest[field] = field === "optional_permissions" ? ["history"] : ["<all_urls>"];
     }, (zip) => {
-      assert.throws(() => audit(zip), /Command failed/);
+      assert.match(auditFailure(zip), new RegExp(`${field} must be empty`));
     });
   }
 });
@@ -125,7 +135,7 @@ test("package audit rejects unexpected content script matches", () => {
   withPackage(({ manifest }) => {
     manifest.content_scripts[0].matches.push("<all_urls>");
   }, (zip) => {
-    assert.throws(() => audit(zip), /Command failed/);
+    assert.match(auditFailure(zip), /unexpected content script matches/);
   });
 });
 
@@ -133,7 +143,7 @@ test("package audit rejects missing required files", () => {
   withPackage(({ omit }) => {
     omit("content.js");
   }, (zip) => {
-    assert.throws(() => audit(zip), /Command failed/);
+    assert.match(auditFailure(zip), /required file missing: content\.js/);
   });
 });
 
@@ -141,7 +151,10 @@ test("package audit rejects forbidden files", () => {
   withPackage(({ write: writeFixture }) => {
     writeFixture(".env.production", "SECRET=value");
   }, (zip) => {
-    assert.throws(() => audit(zip), /Command failed/);
+    assert.match(
+      auditFailure(zip),
+      /forbidden file included: \.env\.production/,
+    );
   });
 });
 
@@ -149,26 +162,24 @@ test("package audit rejects forbidden content markers", () => {
   withPackage(({ write: writeFixture }) => {
     writeFixture("assets/marker.js", "const marker='PLACEHOLDER';");
   }, (zip) => {
-    assert.throws(() => audit(zip), /Command failed/);
+    assert.match(auditFailure(zip), /forbidden marker included: PLACEHOLDER/);
   });
 });
 
 test("package audit rejects release-value mismatches", () => {
   withPackage(() => {}, (zip) => {
-    assert.throws(
-      () =>
-        audit(zip, {
-          VITE_GUMROAD_PRODUCT_ID: "different-product-id",
-        }),
-      /Command failed/,
+    assert.match(
+      auditFailure(zip, {
+        VITE_GUMROAD_PRODUCT_ID: "different-product-id",
+      }),
+      /configured Gumroad product ID is not embedded/,
     );
-    assert.throws(
-      () =>
-        audit(zip, {
-          VITE_GUMROAD_CHECKOUT_URL:
-            "https://fixture.gumroad.com/l/different",
-        }),
-      /Command failed/,
+    assert.match(
+      auditFailure(zip, {
+        VITE_GUMROAD_CHECKOUT_URL:
+          "https://fixture.gumroad.com/l/different",
+      }),
+      /configured Gumroad checkout URL is not embedded/,
     );
   });
 });
