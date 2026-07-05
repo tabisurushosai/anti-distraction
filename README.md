@@ -34,8 +34,6 @@ npm install     # 依存インストール
 npm run lint    # 型チェック (tsc --noEmit)
 npm run build   # vite で dist/ にビルド
 npm run test    # node:test で単体テスト
-npm run audit:package
-                # 生成済み ZIP の必須/禁止ファイル、権限、公開設定を監査
 VITE_GUMROAD_PRODUCT_ID=... VITE_GUMROAD_CHECKOUT_URL=... npm run package
                 # 公開設定を検査し、ZIP を生成・監査
 ```
@@ -70,8 +68,6 @@ npm install     # install deps
 npm run lint    # type check (tsc --noEmit)
 npm run build   # build to dist/ with vite
 npm run test    # unit tests via node:test
-npm run audit:package
-                # audit the generated ZIP, permissions, and release values
 VITE_GUMROAD_PRODUCT_ID=... VITE_GUMROAD_CHECKOUT_URL=... npm run package
                 # validate config, create, and audit release/anti-distraction.zip
 ```

@@ -96,6 +96,36 @@ if (manifest) {
   ) {
     fail(`unexpected host_permissions: ${hostPermissions.join(",")}`);
   }
+  const optionalPermissions = manifest.optional_permissions ?? [];
+  if (optionalPermissions.length !== 0) {
+    fail(`optional_permissions must be empty: ${optionalPermissions.join(",")}`);
+  }
+  const optionalHostPermissions = manifest.optional_host_permissions ?? [];
+  if (optionalHostPermissions.length !== 0) {
+    fail(
+      `optional_host_permissions must be empty: ${optionalHostPermissions.join(",")}`,
+    );
+  }
+
+  const expectedMatches = [
+    "*://*.facebook.com/*",
+    "*://*.instagram.com/*",
+    "*://*.tiktok.com/*",
+    "*://*.twitter.com/*",
+    "*://*.x.com/*",
+    "*://*.youtube.com/*",
+  ].sort();
+  const contentScripts = manifest.content_scripts ?? [];
+  const matches =
+    contentScripts.length === 1
+      ? [...(contentScripts[0].matches ?? [])].sort()
+      : [];
+  if (
+    contentScripts.length !== 1 ||
+    JSON.stringify(matches) !== JSON.stringify(expectedMatches)
+  ) {
+    fail(`unexpected content script matches: ${matches.join(",")}`);
+  }
 }
 
 const textExtensions = /\.(?:css|html|js|json|txt|md)$/;
