@@ -33,7 +33,7 @@ A Chrome extension (Manifest V3) that grays out SNS / video tabs and enforces vi
 npm install     # 依存インストール
 npm run lint    # 型チェック (tsc --noEmit)
 npm run build   # vite で dist/ にビルド
-npm run test    # node:test で単体テスト
+npm run test:run # node:test で単体テスト
 VITE_GUMROAD_PRODUCT_ID=... VITE_GUMROAD_CHECKOUT_URL=... npm run package
                 # 公開設定を検査し、ZIP を生成・監査
 ```
@@ -67,7 +67,7 @@ VITE_GUMROAD_PRODUCT_ID=... VITE_GUMROAD_CHECKOUT_URL=... npm run package
 npm install     # install deps
 npm run lint    # type check (tsc --noEmit)
 npm run build   # build to dist/ with vite
-npm run test    # unit tests via node:test
+npm run test:run # unit tests via node:test
 VITE_GUMROAD_PRODUCT_ID=... VITE_GUMROAD_CHECKOUT_URL=... npm run package
                 # validate config, create, and audit release/anti-distraction.zip
 ```
