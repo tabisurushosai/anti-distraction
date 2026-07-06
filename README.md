@@ -34,6 +34,8 @@ npm install     # 依存インストール
 npm run lint    # 型チェック (tsc --noEmit)
 npm run build   # vite で dist/ にビルド
 npm run test:run # node:test で単体テスト
+npm run capture:store-screenshots
+                # ビルド済み拡張を Chrome for Testing で読み込み、assets/store/screenshots/ を生成
 VITE_GUMROAD_PRODUCT_ID=... VITE_GUMROAD_CHECKOUT_URL=... npm run package
                 # 公開設定を検査し、ZIP を生成・監査
 ```
@@ -68,6 +70,8 @@ npm install     # install deps
 npm run lint    # type check (tsc --noEmit)
 npm run build   # build to dist/ with vite
 npm run test:run # unit tests via node:test
+npm run capture:store-screenshots
+                # load the built extension in Chrome for Testing and write assets/store/screenshots/
 VITE_GUMROAD_PRODUCT_ID=... VITE_GUMROAD_CHECKOUT_URL=... npm run package
                 # validate config, create, and audit release/anti-distraction.zip
 ```
