@@ -12,10 +12,13 @@
     "check:release-config": "node scripts/check-release-config.mjs",
     "audit:package": "node scripts/audit-package.mjs",
     "package": "npm run check:release-config && npm run build && node scripts/package.mjs && npm run audit:package",
-    "audit:i18n": "node scripts/audit-i18n.mjs"
+    "audit:i18n": "node scripts/audit-i18n.mjs",
+    "capture:store-screenshots": "node scripts/capture-store-screenshots.mjs"
   },
   "devDependencies": {
+    "@puppeteer/browsers": "^2.10.5",
     "@types/chrome": "^0.0.268",
+    "puppeteer-core": "^24.4.0",
     "typescript": "^5.4.5",
     "vite": "^5.2.10"
   }
