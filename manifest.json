@@ -45,5 +45,8 @@
     "tabs",
     "alarms",
     "idle"
+  ],
+  "host_permissions": [
+    "https://api.gumroad.com/*"
   ]
 }

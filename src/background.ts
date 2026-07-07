@@ -35,11 +35,12 @@ import {
   type CooldownResponse,
 } from "./lib/cooldown";
 import { isPremiumEffective } from "./lib/premium-status";
-import { handleReturnUrl } from "./upgrade";
+import { refreshStoredLicense } from "./upgrade";
 
 const DAILY_RESET_ALARM = "daily-reset";
 const TIME_LIMIT_ALARM = "time-limit-tick";
 const DAILY_STATS_CLEANUP_ALARM = "daily-stats-cleanup";
+const PREMIUM_REVALIDATION_ALARM = "premium-revalidation";
 const TIME_LIMIT_PERIOD_MIN = 0.25;
 const STATS_RETAIN_DAYS = 90;
 const TRIAL_START_KEY = "trial_start_ts" as const;
@@ -130,6 +131,17 @@ function scheduleTimeLimitTick(): void {
 function scheduleStatsCleanup(): void {
   try {
     chrome.alarms.create(DAILY_STATS_CLEANUP_ALARM, {
+      periodInMinutes: 60 * 24,
+    });
+  } catch {
+    /* fail-safe */
+  }
+}
+
+/** Revalidates a purchased Gumroad license at least once per day. */
+function schedulePremiumRevalidation(): void {
+  try {
+    chrome.alarms.create(PREMIUM_REVALIDATION_ALARM, {
       periodInMinutes: 60 * 24,
     });
   } catch {
@@ -330,6 +342,8 @@ async function onRequestUnblock(senderTabId: number | null): Promise<CooldownRes
       "unblockMaxPerDayFree",
       "unblockMaxPerDayPremium",
       "premium_unlocked",
+      "premium_verified_at",
+      "premium_grace_until",
       "trial_start_ts",
     ] as const);
 
@@ -366,6 +380,8 @@ async function onRequestUnblock(senderTabId: number | null): Promise<CooldownRes
       const isPremium = isPremiumEffective(
         {
           premium_unlocked: cfg.premium_unlocked,
+          premium_verified_at: cfg.premium_verified_at,
+          premium_grace_until: cfg.premium_grace_until,
           trial_start_ts: cfg.trial_start_ts,
         },
         now,
@@ -447,7 +463,9 @@ chrome.runtime.onInstalled.addListener(async () => {
     scheduleDailyReset();
     scheduleTimeLimitTick();
     scheduleStatsCleanup();
+    schedulePremiumRevalidation();
     setIdleDetection();
+    await refreshStoredLicense();
     await restoreCooldownFromStorage();
     await refreshActiveTab();
     await runCleanupIfNeeded();
@@ -461,7 +479,9 @@ chrome.runtime.onStartup.addListener(async () => {
     scheduleDailyReset();
     scheduleTimeLimitTick();
     scheduleStatsCleanup();
+    schedulePremiumRevalidation();
     setIdleDetection();
+    await refreshStoredLicense();
     await restoreCooldownFromStorage();
     await refreshActiveTab();
     await runCleanupIfNeeded();
@@ -509,6 +529,10 @@ chrome.alarms.onAlarm.addListener((alarm) => {
       void runStatsCleanup();
       return;
     }
+    if (alarm.name === PREMIUM_REVALIDATION_ALARM) {
+      void refreshStoredLicense();
+      return;
+    }
     if (alarm.name === DAILY_RESET_ALARM) {
       /* usage keys are date-stamped; reserved for future cleanup */
     }
@@ -529,18 +553,6 @@ chrome.tabs.onActivated.addListener(async (info) => {
 
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   try {
-    const candidateUrl = changeInfo.url ?? tab.url;
-    if (typeof candidateUrl === "string" && candidateUrl.length > 0) {
-      const res = await handleReturnUrl(candidateUrl);
-      if (res.ok) {
-        try {
-          await chrome.tabs.remove(tabId);
-        } catch {
-          /* tab may already be gone */
-        }
-        return;
-      }
-    }
     if (!tab.active) return;
     if (changeInfo.status !== "complete" && changeInfo.url === undefined) return;
     if (tabId !== tracker.activeTabId && !tab.active) return;

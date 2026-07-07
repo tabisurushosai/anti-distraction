@@ -162,7 +162,7 @@
     "description": "リセットボタン"
   },
   "options_upgrade_premium": {
-    "message": "Premium にアップグレード ($3)",
+    "message": "Premium にアップグレード ($9)",
     "description": "Premiumアップグレードボタン"
   },
   "options_trial_remaining": {
@@ -340,7 +340,7 @@
     }
   },
   "options_premium_note": {
-    "message": "決済は Stripe Checkout で処理されます。購入完了後に自動でロック解除されます。",
+    "message": "決済は Gumroad で処理されます。購入後、領収メールのライセンスキーを入力してください。",
     "description": "Premium 購入ノート"
   },
   "options_license_label": {
@@ -356,8 +356,8 @@
     "description": "ライセンスコード適用ボタン"
   },
   "options_license_invalid": {
-    "message": "コードの形式が正しくありません。",
-    "description": "ライセンスコード形式エラー"
+    "message": "ライセンスを確認できませんでした。",
+    "description": "無効または失効したライセンス"
   },
   "options_license_applied": {
     "message": "Premium を有効化しました。",
@@ -366,6 +366,18 @@
   "options_license_storage_error": {
     "message": "保存に失敗しました。もう一度お試しください。",
     "description": "ライセンスコード適用時のストレージ失敗"
+  },
+  "options_license_network_error": {
+    "message": "Gumroad に接続できません。通信環境を確認して再試行してください。",
+    "description": "ライセンス検証時の通信失敗"
+  },
+  "options_license_config_error": {
+    "message": "このビルドでは購入設定が完了していません。",
+    "description": "Gumroad 商品設定の不足"
+  },
+  "options_checkout_error": {
+    "message": "購入ページを開けませんでした。もう一度お試しください。",
+    "description": "購入ページを開けない場合のエラー"
   },
   "aria_new_site_input": {
     "message": "対象サイトのホスト名",

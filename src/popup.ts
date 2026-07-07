@@ -24,6 +24,8 @@ type PopupState = {
   usageByDate: Record<string, number>;
   lastUnblockAt: number | null;
   premiumUnlocked: boolean;
+  premiumVerifiedAt: number | null;
+  premiumGraceUntil: number | null;
   trialStartTs: number | null;
 };
 
@@ -34,6 +36,8 @@ const STORAGE_KEYS = {
   usageByDate: "usageByDate",
   lastUnblockAt: "lastUnblockAt",
   premiumUnlocked: "premium_unlocked",
+  premiumVerifiedAt: "premium_verified_at",
+  premiumGraceUntil: "premium_grace_until",
   trialStartTs: "trial_start_ts",
 } as const;
 
@@ -44,6 +48,8 @@ const DEFAULTS: PopupState = {
   usageByDate: {},
   lastUnblockAt: null,
   premiumUnlocked: false,
+  premiumVerifiedAt: null,
+  premiumGraceUntil: null,
   trialStartTs: null,
 };
 
@@ -86,6 +92,14 @@ async function loadState(): Promise<PopupState> {
     lastUnblockAt:
       typeof data.lastUnblockAt === "number" ? data.lastUnblockAt : null,
     premiumUnlocked: data.premium_unlocked === true,
+    premiumVerifiedAt:
+      typeof data.premium_verified_at === "number"
+        ? data.premium_verified_at
+        : null,
+    premiumGraceUntil:
+      typeof data.premium_grace_until === "number"
+        ? data.premium_grace_until
+        : null,
     trialStartTs:
       typeof data.trial_start_ts === "number" ? data.trial_start_ts : null,
   };
@@ -93,10 +107,14 @@ async function loadState(): Promise<PopupState> {
 
 function premiumStateOf(state: PopupState): {
   premium_unlocked: boolean;
+  premium_verified_at: number | null;
+  premium_grace_until: number | null;
   trial_start_ts: number | null;
 } {
   return {
     premium_unlocked: state.premiumUnlocked,
+    premium_verified_at: state.premiumVerifiedAt,
+    premium_grace_until: state.premiumGraceUntil,
     trial_start_ts: state.trialStartTs,
   };
 }
@@ -177,7 +195,7 @@ function renderPremium(state: PopupState): void {
 
   const ps = premiumStateOf(state);
   const now = Date.now();
-  const purchased = isPremiumPurchased(ps);
+  const purchased = isPremiumPurchased(ps, now);
   const trial = isTrialActive(ps, now);
   const effective = isPremiumEffective(ps, now);
 

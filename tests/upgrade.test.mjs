@@ -1,176 +1,312 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  DEFAULT_CONFIG,
-  RETURN_URL_PATTERNS,
-  STRIPE_CHECKOUT_URL,
-  UNLOCK_PARAM,
+  OFFLINE_GRACE_MS,
+  REVERIFY_INTERVAL_MS,
+  applyLicenseCode,
   buildCheckoutUrl,
-  classifyReturnUrl,
-  generateInstallId,
-  isReturnUrl,
+  evaluateGumroadResponse,
+  isUpgradeConfigured,
   isValidLicenseCode,
-  parseUnlockToken,
-} from "../src/lib/upgrade.ts";
+  isWithinOfflineGrace,
+  normalizeLicenseCode,
+  refreshStoredLicense,
+  shouldReverify,
+} from "../src/upgrade.ts";
 
-// ---------- buildCheckoutUrl ----------
+const NOW = Date.UTC(2026, 6, 5, 9, 0, 0);
+const CONFIG = {
+  checkoutUrl: "https://seller.gumroad.com/l/anti-distraction",
+  productId: "product-123",
+  verifyUrl: "https://api.gumroad.com/v2/licenses/verify",
+};
+const VALID_PAYLOAD = {
+  success: true,
+  purchase: {
+    product_id: CONFIG.productId,
+    refunded: false,
+    disputed: false,
+    chargebacked: false,
+  },
+};
 
-test("buildCheckoutUrl: appends client_reference_id from installId", () => {
-  const url = buildCheckoutUrl("abc-123");
-  const u = new URL(url);
-  assert.equal(u.searchParams.get("client_reference_id"), "abc-123");
-  assert.equal(u.origin + u.pathname, new URL(STRIPE_CHECKOUT_URL).origin + new URL(STRIPE_CHECKOUT_URL).pathname);
-});
+function jsonResponse(payload, status = 200) {
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
 
-test("buildCheckoutUrl: empty installId omits client_reference_id", () => {
-  const url = buildCheckoutUrl("");
-  const u = new URL(url);
-  assert.equal(u.searchParams.get("client_reference_id"), null);
-});
-
-test("buildCheckoutUrl: respects override config", () => {
-  const override = {
-    ...DEFAULT_CONFIG,
-    checkoutUrl: "https://example.test/checkout",
+function installChromeStorage(initial = {}) {
+  const state = {
+    premium_unlocked: false,
+    premium_license_key: null,
+    premium_verified_at: null,
+    premium_grace_until: null,
+    ...initial,
   };
-  const url = buildCheckoutUrl("xyz", override);
-  const u = new URL(url);
-  assert.equal(u.origin + u.pathname, "https://example.test/checkout");
-  assert.equal(u.searchParams.get("client_reference_id"), "xyz");
+  const writes = [];
+  globalThis.chrome = {
+    storage: {
+      local: {
+        async get(keys) {
+          const list = Array.isArray(keys) ? keys : [keys];
+          return Object.fromEntries(list.map((key) => [key, state[key]]));
+        },
+        async set(patch) {
+          writes.push({ ...patch });
+          Object.assign(state, patch);
+        },
+        async remove(key) {
+          delete state[key];
+        },
+      },
+    },
+    tabs: {
+      async create() {},
+    },
+  };
+  return { state, writes };
+}
+
+test("configuration requires public Gumroad product and HTTPS URLs", () => {
+  assert.equal(isUpgradeConfigured(CONFIG), true);
+  assert.equal(isUpgradeConfigured({ ...CONFIG, productId: "" }), false);
+  assert.equal(
+    isUpgradeConfigured({ ...CONFIG, checkoutUrl: "http://example.test" }),
+    false,
+  );
+  assert.equal(
+    isUpgradeConfigured({
+      ...CONFIG,
+      checkoutUrl: "https://example.test/REPLACE_PRODUCT",
+    }),
+    false,
+  );
 });
 
-// ---------- generateInstallId ----------
-
-test("generateInstallId: returns non-empty string by default", () => {
-  const id = generateInstallId();
-  assert.equal(typeof id, "string");
-  assert.ok(id.length > 0);
+test("checkout URL contains no install or license identifier", () => {
+  const url = new URL(buildCheckoutUrl(CONFIG));
+  assert.equal(url.toString(), CONFIG.checkoutUrl);
+  assert.equal([...url.searchParams].length, 0);
 });
 
-test("generateInstallId: returns different ids across calls", () => {
-  const a = generateInstallId();
-  const b = generateInstallId();
-  assert.notEqual(a, b);
+test("license syntax validation never grants entitlement by itself", () => {
+  assert.equal(isValidLicenseCode("AB12-3456_CDEF"), true);
+  assert.equal(normalizeLicenseCode("  AB12-3456  "), "AB12-3456");
+  assert.equal(isValidLicenseCode("abc"), false);
+  assert.equal(isValidLicenseCode("a".repeat(129)), false);
+  assert.equal(isValidLicenseCode("ABCD SECRET"), false);
+  assert.equal(isValidLicenseCode(null), false);
 });
 
-test("generateInstallId: accepts a custom rng", () => {
-  const id = generateInstallId(() => "fixed-token");
-  assert.equal(id, "fixed-token");
+test("Gumroad response accepts only the configured, paid purchase", () => {
+  assert.deepEqual(
+    evaluateGumroadResponse(VALID_PAYLOAD, CONFIG.productId),
+    { valid: true },
+  );
+  assert.deepEqual(
+    evaluateGumroadResponse(
+      {
+        ...VALID_PAYLOAD,
+        purchase: { ...VALID_PAYLOAD.purchase, product_id: "other" },
+      },
+      CONFIG.productId,
+    ),
+    { valid: false, reason: "product-mismatch" },
+  );
+  for (const field of ["refunded", "disputed", "chargebacked"]) {
+    const outcome = evaluateGumroadResponse(
+      {
+        ...VALID_PAYLOAD,
+        purchase: { ...VALID_PAYLOAD.purchase, [field]: true },
+      },
+      CONFIG.productId,
+    );
+    assert.equal(outcome.valid, false);
+    assert.equal(outcome.reason, field);
+  }
+  assert.deepEqual(evaluateGumroadResponse({}, CONFIG.productId), {
+    valid: false,
+    reason: "invalid-response",
+  });
+  for (const field of ["refunded", "disputed", "chargebacked"]) {
+    const purchase = { ...VALID_PAYLOAD.purchase };
+    delete purchase[field];
+    assert.deepEqual(
+      evaluateGumroadResponse(
+        { ...VALID_PAYLOAD, purchase },
+        CONFIG.productId,
+      ),
+      { valid: false, reason: "invalid-response" },
+    );
+  }
+  assert.deepEqual(
+    evaluateGumroadResponse(
+      {
+        ...VALID_PAYLOAD,
+        purchase: { ...VALID_PAYLOAD.purchase, refunded: "false" },
+      },
+      CONFIG.productId,
+    ),
+    { valid: false, reason: "invalid-response" },
+  );
 });
 
-// ---------- isReturnUrl ----------
+test("reverification and offline grace use exact boundaries", () => {
+  assert.equal(shouldReverify(null, NOW), true);
+  assert.equal(shouldReverify(NOW, NOW), false);
+  assert.equal(shouldReverify(NOW - REVERIFY_INTERVAL_MS + 1, NOW), false);
+  assert.equal(shouldReverify(NOW - REVERIFY_INTERVAL_MS, NOW), true);
+  assert.equal(isWithinOfflineGrace(NOW, NOW), true);
+  assert.equal(isWithinOfflineGrace(NOW - 1, NOW), false);
+});
 
-test("isReturnUrl: matches the default return URL origin + pathname", () => {
-  for (const pat of RETURN_URL_PATTERNS) {
-    assert.equal(isReturnUrl(pat + "?" + UNLOCK_PARAM + "=t"), true);
+test("applyLicenseCode persists only a server-verified purchase", async () => {
+  const { state, writes } = installChromeStorage();
+  let requestBody = "";
+  const result = await applyLicenseCode(" KEY-1234 ", {
+    config: CONFIG,
+    now: NOW,
+    fetchImpl: async (_url, init) => {
+      requestBody = String(init?.body ?? "");
+      return jsonResponse(VALID_PAYLOAD);
+    },
+  });
+
+  assert.deepEqual(result, { ok: true, verifiedAt: NOW });
+  assert.equal(requestBody.includes("product_id=product-123"), true);
+  assert.equal(requestBody.includes("license_key=KEY-1234"), true);
+  assert.equal(requestBody.includes("increment_uses_count=false"), true);
+  assert.equal(state.premium_unlocked, true);
+  assert.equal(state.premium_license_key, "KEY-1234");
+  assert.equal(state.premium_verified_at, NOW);
+  assert.equal(state.premium_grace_until, NOW + OFFLINE_GRACE_MS);
+  assert.equal(writes.length, 1);
+});
+
+test("invalid and unavailable verification never unlock new users", async () => {
+  for (const scenario of [
+    async () => jsonResponse({ success: false }, 404),
+    async () => {
+      throw new Error("offline");
+    },
+  ]) {
+    const { state, writes } = installChromeStorage();
+    const result = await applyLicenseCode("KEY-1234", {
+      config: CONFIG,
+      now: NOW,
+      fetchImpl: scenario,
+    });
+    assert.equal(result.ok, false);
+    assert.equal(state.premium_unlocked, false);
+    assert.equal(writes.length, 0);
   }
 });
 
-test("isReturnUrl: rejects mismatched origin", () => {
-  assert.equal(isReturnUrl("https://malicious.test/unlock?ad_unlock=x"), false);
+test("stored license revalidation preserves only bounded offline access", async () => {
+  const verifiedAt = NOW - REVERIFY_INTERVAL_MS;
+  const { state } = installChromeStorage({
+    premium_unlocked: true,
+    premium_license_key: "KEY-1234",
+    premium_verified_at: verifiedAt,
+    premium_grace_until: verifiedAt + OFFLINE_GRACE_MS,
+  });
+  const result = await refreshStoredLicense({
+    config: CONFIG,
+    now: NOW,
+    fetchImpl: async () => {
+      throw new Error("offline");
+    },
+  });
+  assert.deepEqual(result, { kind: "offline-grace" });
+  assert.equal(state.premium_unlocked, true);
+
+  const expired = await refreshStoredLicense({
+    config: CONFIG,
+    now: verifiedAt + OFFLINE_GRACE_MS + 1,
+    fetchImpl: async () => {
+      throw new Error("offline");
+    },
+  });
+  assert.deepEqual(expired, { kind: "revoked", reason: "grace-expired" });
+  assert.equal(state.premium_unlocked, false);
+  assert.equal(state.premium_license_key, "KEY-1234");
 });
 
-test("isReturnUrl: rejects mismatched pathname", () => {
-  assert.equal(isReturnUrl("https://anti-distraction.example/other?ad_unlock=x"), false);
+test("transient HTTP failures preserve an existing license during grace", async () => {
+  for (const status of [408, 425, 429, 500, 503]) {
+    const verifiedAt = NOW - REVERIFY_INTERVAL_MS;
+    const { state } = installChromeStorage({
+      premium_unlocked: true,
+      premium_license_key: "KEY-1234",
+      premium_verified_at: verifiedAt,
+      premium_grace_until: verifiedAt + OFFLINE_GRACE_MS,
+    });
+    const result = await refreshStoredLicense({
+      config: CONFIG,
+      now: NOW,
+      fetchImpl: async () => jsonResponse({ success: false }, status),
+    });
+    assert.deepEqual(result, { kind: "offline-grace" });
+    assert.equal(state.premium_unlocked, true);
+    assert.equal(state.premium_license_key, "KEY-1234");
+  }
 });
 
-test("isReturnUrl: rejects malformed url", () => {
-  assert.equal(isReturnUrl("not a url"), false);
+test("malformed successful response is treated as a transient failure", async () => {
+  const verifiedAt = NOW - REVERIFY_INTERVAL_MS;
+  const { state } = installChromeStorage({
+    premium_unlocked: true,
+    premium_license_key: "KEY-1234",
+    premium_verified_at: verifiedAt,
+    premium_grace_until: verifiedAt + OFFLINE_GRACE_MS,
+  });
+  const result = await refreshStoredLicense({
+    config: CONFIG,
+    now: NOW,
+    fetchImpl: async () => jsonResponse({ success: true }),
+  });
+  assert.deepEqual(result, { kind: "offline-grace" });
+  assert.equal(state.premium_unlocked, true);
+  assert.equal(state.premium_license_key, "KEY-1234");
 });
 
-test("isReturnUrl: pathname prefix match allows trailing segments", () => {
-  assert.equal(
-    isReturnUrl("https://anti-distraction.example/unlock/success?ad_unlock=t"),
-    true,
-  );
+test("refund or dispute revokes and clears a stored key", async () => {
+  for (const field of ["refunded", "disputed", "chargebacked"]) {
+    const { state } = installChromeStorage({
+      premium_unlocked: true,
+      premium_license_key: "KEY-1234",
+      premium_verified_at: NOW - REVERIFY_INTERVAL_MS,
+      premium_grace_until: NOW + OFFLINE_GRACE_MS,
+    });
+    const result = await refreshStoredLicense({
+      config: CONFIG,
+      now: NOW,
+      fetchImpl: async () =>
+        jsonResponse({
+          ...VALID_PAYLOAD,
+          purchase: { ...VALID_PAYLOAD.purchase, [field]: true },
+        }),
+    });
+    assert.deepEqual(result, {
+      kind: "revoked",
+      reason: "verification-failed",
+    });
+    assert.equal(state.premium_unlocked, false);
+    assert.equal(state.premium_license_key, null);
+  }
 });
 
-// ---------- parseUnlockToken ----------
-
-test("parseUnlockToken: returns the unlock parameter value", () => {
-  assert.equal(
-    parseUnlockToken("https://anti-distraction.example/unlock?ad_unlock=abc123"),
-    "abc123",
-  );
-});
-
-test("parseUnlockToken: null when param missing", () => {
-  assert.equal(
-    parseUnlockToken("https://anti-distraction.example/unlock"),
-    null,
-  );
-});
-
-test("parseUnlockToken: null when param empty", () => {
-  assert.equal(
-    parseUnlockToken("https://anti-distraction.example/unlock?ad_unlock="),
-    null,
-  );
-});
-
-test("parseUnlockToken: null for malformed url", () => {
-  assert.equal(parseUnlockToken("not a url"), null);
-});
-
-// ---------- isValidLicenseCode ----------
-
-test("isValidLicenseCode: accepts alnum + dash/underscore within length", () => {
-  assert.equal(isValidLicenseCode("AB12_-ok"), true);
-  assert.equal(isValidLicenseCode("abcd"), true);
-});
-
-test("isValidLicenseCode: rejects too short", () => {
-  assert.equal(isValidLicenseCode("abc"), false);
-});
-
-test("isValidLicenseCode: rejects too long", () => {
-  assert.equal(isValidLicenseCode("a".repeat(129)), false);
-});
-
-test("isValidLicenseCode: rejects whitespace inside", () => {
-  assert.equal(isValidLicenseCode("ab cd"), false);
-});
-
-test("isValidLicenseCode: trims surrounding whitespace before validating", () => {
-  assert.equal(isValidLicenseCode("  abcd  "), true);
-});
-
-test("isValidLicenseCode: rejects special chars", () => {
-  assert.equal(isValidLicenseCode("abcd!"), false);
-  assert.equal(isValidLicenseCode("abcd?"), false);
-});
-
-test("isValidLicenseCode: rejects non-string inputs gracefully", () => {
-  assert.equal(isValidLicenseCode(null), false);
-  assert.equal(isValidLicenseCode(undefined), false);
-  assert.equal(isValidLicenseCode(12345), false);
-});
-
-// ---------- classifyReturnUrl ----------
-
-test("classifyReturnUrl: returns unlock with valid url + token", () => {
-  const res = classifyReturnUrl(
-    "https://anti-distraction.example/unlock?ad_unlock=abcd1234",
-  );
-  assert.deepEqual(res, { kind: "unlock", token: "abcd1234" });
-});
-
-test("classifyReturnUrl: ignores non-matching url", () => {
-  const res = classifyReturnUrl("https://other.test/unlock?ad_unlock=abcd1234");
-  assert.equal(res.kind, "ignore");
-  assert.equal(res.reason, "invalid-url");
-});
-
-test("classifyReturnUrl: ignores missing token", () => {
-  const res = classifyReturnUrl("https://anti-distraction.example/unlock");
-  assert.equal(res.kind, "ignore");
-  assert.equal(res.reason, "missing-token");
-});
-
-test("classifyReturnUrl: ignores invalid token", () => {
-  const res = classifyReturnUrl(
-    "https://anti-distraction.example/unlock?ad_unlock=ab",
-  );
-  assert.equal(res.kind, "ignore");
-  assert.equal(res.reason, "invalid-token");
+test("legacy local-only unlock is revoked without a verified key", async () => {
+  const { state } = installChromeStorage({
+    premium_unlocked: true,
+  });
+  const result = await refreshStoredLicense({
+    config: CONFIG,
+    now: NOW,
+    fetchImpl: async () => jsonResponse(VALID_PAYLOAD),
+  });
+  assert.deepEqual(result, { kind: "no-license" });
+  assert.equal(state.premium_unlocked, false);
 });

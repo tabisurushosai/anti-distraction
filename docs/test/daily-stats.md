@@ -48,13 +48,14 @@
 `src/lib/premium-status.ts` の `isPremiumEffective` と `trialDaysLeft` を網羅 (15 ケース)。
 
 `isPremiumEffective(state, now)`:
-- `premium_unlocked=true` は trial 期限切れでも常に true
+- `premium_unlocked=true`でも検証日時または猶予期限がなければfalse
+- 検証日時が未来でなく、猶予期限内の購入はtrial期限切れでもtrue
 - `trial_start_ts` から 7 日以内は true (delta 0 / 3 日経過の双方)
 - ちょうど `TRIAL_DAYS * DAY_MS` 経過は false (境界排他)
 - 期限切れ / 未来日 (時計ずれ) / null / `NaN` は false
 
 `trialDaysLeft(state, now)`:
-- `premium_unlocked=true` は `null`
+- 検証済み購入は`null`
 - `trial_start_ts=null` は `TRIAL_DAYS` (7)
 - 開始直後は 7、3 日経過で 4
 - 期限切れは 0 (負値にならず clamp)
@@ -87,7 +88,7 @@
 | 2  | バーに hover / focus | `aria-label` / `title` に `YYYY-MM-DD: N 分` 形式のラベルが出る (スクリーンリーダー読み上げで確認) |
 | 3  | popup の「統計を見る」ボタンを押下 | `src/options.html#stats` を新規タブで開き、stats セクションへスクロールする |
 | 4  | options を開く (無料状態 `premium_unlocked=false`, `trial_start_ts=null`) | `#stats` セクションに **7 行** の表が描画される。合計・平均・達成率が出る。`stats_premium_required` の案内が表示される |
-| 5  | DevTools から `chrome.storage.local.set({premium_unlocked: true})` | options が再描画され、表が **30 行** に切り替わり、`streak_current` / `streak_best` の 2 メトリクスが追加表示される |
+| 5  | DevToolsから`const now=Date.now(); chrome.storage.local.set({premium_unlocked:true,premium_verified_at:now,premium_grace_until:now+14*86400000})` | optionsが再描画され、表が**30行**に切り替わり、`streak_current` / `streak_best`の2メトリクスが追加表示される |
 | 6  | `premium_unlocked=false` に戻し、`trial_start_ts: Date.now()` をセット | trial 中のため再び 30 行表示 + streak。`trialDaysLeft` 表示が 7 から減っていく (UI 反映は別タスクで実装予定) |
 | 7  | `trial_start_ts: Date.now() - 8 * 86400000` をセット | trial 期限切れで 7 行に戻る (`isPremiumEffective` が false を返す) |
 | 8  | popup を開いたまま `chrome.storage.local.set({dailyLimitMinutes: 60})` を別タブから実行 | popup のバー高さが debounce (200ms) 後に再計算され、超過日が減るのが見える |
@@ -105,7 +106,8 @@
 - [x] `summarizeUsage` の `exceeded` 判定は `dailyLimitMinutes > 0 && minutes >= dailyLimitMinutes` で設計通り。
 - [x] `pruneUsage` は `today - (retainDays - 1)` を cutoff 下限とし、cutoff 日も保持。
 - [x] `pruneUsage` が破損キー (parse 不能) と非有限値を無条件削除。
-- [x] `src/lib/premium-status.ts` の `isPremiumEffective` が `premium_unlocked === true` で常に true、trial 7 日以内 (delta < `TRIAL_DAYS * DAY_MS`) で true、それ以外 false。
+- [x] `src/lib/premium-status.ts`の`isPremiumEffective`が検証済みPremiumの猶予期限内、
+  またはtrial 7日以内でtrue、それ以外false。
 - [x] `_locales/ja` と `_locales/en` の双方に新規キー (`stats_recent_7d` / `stats_recent_30d` / `stats_hours_minutes` / `stats_total` / `stats_average` / `stats_achievement_rate` / `stats_streak_current` / `stats_streak_best` / `stats_no_data` / `stats_limit_note` / `stats_premium_required`) が存在。
 - [x] `src/popup.ts` の `renderRecentBars` が `lastNDays(now, 7)` と `summarizeUsage` を使用し、`textContent` ベースで DOM を組み立てている (innerHTML 不使用)。
 - [x] `src/options.ts` の `STATS_FREE_DAYS = 7` / `STATS_PREMIUM_DAYS = 30` が設計と一致。
@@ -113,7 +115,9 @@
 - [x] `src/background.ts` の `DAILY_STATS_CLEANUP_ALARM = "daily-stats-cleanup"` は `TIME_LIMIT_ALARM` / `DAILY_RESET_ALARM` と衝突しない。
 - [x] `onInstalled` / `onStartup` の双方で `scheduleStatsCleanup()` と `runCleanupIfNeeded()` が呼ばれる。
 - [x] `runStatsCleanup` は変更がない場合 `setValues` を呼ばない (writes 抑制)。
-- [x] `chrome.storage.onChanged` の `local` 購読で `usageByDate` / `dailyLimitMinutes` / `premium_unlocked` / `trial_start_ts` の外部更新を popup / options が反映 (debounce 200ms / 500ms)。
+- [x] `chrome.storage.onChanged`の`local`購読で`usageByDate` / `dailyLimitMinutes` /
+  Premium検証3項目 / `trial_start_ts`の外部更新をpopup / optionsが反映
+  (debounce 200ms / 500ms)。
 
 ## 既知の制限・後続課題
 

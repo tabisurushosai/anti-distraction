@@ -21,6 +21,9 @@ export type StorageSchema = {
   schemaVersion: number;
   trial_start_ts: number | null;
   premium_unlocked: boolean;
+  premium_license_key: string | null;
+  premium_verified_at: number | null;
+  premium_grace_until: number | null;
   lastUnblockAt: number | null;
   unblockCountByDate: UnblockCountByDate;
   unblockMaxPerDayFree: number;
@@ -31,7 +34,7 @@ export type StorageSchema = {
 export type StorageKey = keyof StorageSchema;
 
 /** Persisted schema version, bumped when a migration is required. */
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 /** Sites pre-populated on first install. Must stay aligned with the manifest. */
 export const DEFAULT_SITES: readonly string[] = [
@@ -55,6 +58,9 @@ export const DEFAULTS: StorageSchema = {
   schemaVersion: SCHEMA_VERSION,
   trial_start_ts: null,
   premium_unlocked: false,
+  premium_license_key: null,
+  premium_verified_at: null,
+  premium_grace_until: null,
   lastUnblockAt: null,
   unblockCountByDate: {},
   unblockMaxPerDayFree: 3,
@@ -73,6 +79,10 @@ function isFiniteNumber(v: unknown): v is number {
 
 function isStringArray(v: unknown): v is string[] {
   return Array.isArray(v) && v.every((s) => typeof s === "string");
+}
+
+function isStringOrNull(v: unknown): v is string | null {
+  return v === null || typeof v === "string";
 }
 
 function isUsageByDate(v: unknown): v is UsageByDate {
@@ -104,6 +114,9 @@ const VALIDATORS: { [K in StorageKey]: Validator<StorageSchema[K]> } = {
   schemaVersion: isFiniteNumber,
   trial_start_ts: isNumberOrNull,
   premium_unlocked: isBoolean,
+  premium_license_key: isStringOrNull,
+  premium_verified_at: isNumberOrNull,
+  premium_grace_until: isNumberOrNull,
   lastUnblockAt: isNumberOrNull,
   unblockCountByDate: isUnblockCountByDate,
   unblockMaxPerDayFree: isFiniteNumber,

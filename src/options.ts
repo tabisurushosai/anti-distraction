@@ -17,7 +17,10 @@ import {
   totalMinutes,
   type UsageSummary,
 } from "./lib/usage-stats";
-import { isPremiumEffective } from "./lib/premium-status";
+import {
+  isPremiumEffective,
+  isPremiumPurchased,
+} from "./lib/premium-status";
 import {
   COOLDOWN_FREE_FIXED_SECONDS,
   COOLDOWN_MAX_SECONDS,
@@ -35,6 +38,8 @@ type OptionsState = {
   cooldownSeconds: number;
   trialStartTs: number | null;
   premiumUnlocked: boolean;
+  premiumVerifiedAt: number | null;
+  premiumGraceUntil: number | null;
   usageByDate: Record<string, number>;
   unblockCountByDate: Record<string, number>;
   unblockMaxPerDayFree: number;
@@ -49,6 +54,8 @@ const STORAGE_KEYS = {
   cooldownSeconds: "cooldownSeconds",
   trialStartTs: "trial_start_ts",
   premiumUnlocked: "premium_unlocked",
+  premiumVerifiedAt: "premium_verified_at",
+  premiumGraceUntil: "premium_grace_until",
   usageByDate: "usageByDate",
   unblockCountByDate: "unblockCountByDate",
   unblockMaxPerDayFree: "unblockMaxPerDayFree",
@@ -74,6 +81,8 @@ const DEFAULTS: OptionsState = {
   cooldownSeconds: 30,
   trialStartTs: null,
   premiumUnlocked: false,
+  premiumVerifiedAt: null,
+  premiumGraceUntil: null,
   usageByDate: {},
   unblockCountByDate: {},
   unblockMaxPerDayFree: 3,
@@ -124,6 +133,14 @@ async function loadState(): Promise<OptionsState> {
     trialStartTs:
       typeof data.trial_start_ts === "number" ? data.trial_start_ts : null,
     premiumUnlocked: data.premium_unlocked === true,
+    premiumVerifiedAt:
+      typeof data.premium_verified_at === "number"
+        ? data.premium_verified_at
+        : null,
+    premiumGraceUntil:
+      typeof data.premium_grace_until === "number"
+        ? data.premium_grace_until
+        : null,
     usageByDate:
       data.usageByDate && typeof data.usageByDate === "object" && !Array.isArray(data.usageByDate)
         ? (data.usageByDate as Record<string, number>)
@@ -164,12 +181,7 @@ const view: OptionsState = { ...DEFAULTS };
 
 /** True when the user has either purchased premium or is within trial window. */
 function isUnlimited(): boolean {
-  if (view.premiumUnlocked) return true;
-  if (view.trialStartTs !== null) {
-    const elapsed = Date.now() - view.trialStartTs;
-    if (elapsed >= 0 && elapsed < TRIAL_DAYS * DAY_MS) return true;
-  }
-  return false;
+  return isPremiumNow();
 }
 
 function showSiteWarning(host: string): void {
@@ -298,7 +310,16 @@ function renderPremium(): void {
   const upgradeBtn = document.getElementById("upgrade-btn") as HTMLButtonElement | null;
   if (!el) return;
 
-  if (view.premiumUnlocked) {
+  const purchased = isPremiumPurchased(
+    {
+      premium_unlocked: view.premiumUnlocked,
+      premium_verified_at: view.premiumVerifiedAt,
+      premium_grace_until: view.premiumGraceUntil,
+      trial_start_ts: view.trialStartTs,
+    },
+    Date.now(),
+  );
+  if (purchased) {
     el.textContent = t("options_premium_active");
     if (upgradeBtn) upgradeBtn.disabled = true;
     return;
@@ -319,6 +340,8 @@ function isPremiumNow(): boolean {
   return isPremiumEffective(
     {
       premium_unlocked: view.premiumUnlocked,
+      premium_verified_at: view.premiumVerifiedAt,
+      premium_grace_until: view.premiumGraceUntil,
       trial_start_ts: view.trialStartTs,
     },
     Date.now(),
@@ -575,14 +598,39 @@ function bindEvents(): void {
 
   const upgradeBtn = document.getElementById("upgrade-btn") as HTMLButtonElement | null;
   upgradeBtn?.addEventListener("click", () => {
-    if (view.premiumUnlocked) return;
+    if (
+      isPremiumPurchased(
+        {
+          premium_unlocked: view.premiumUnlocked,
+          premium_verified_at: view.premiumVerifiedAt,
+          premium_grace_until: view.premiumGraceUntil,
+          trial_start_ts: view.trialStartTs,
+        },
+        Date.now(),
+      )
+    ) {
+      return;
+    }
     upgradeBtn.disabled = true;
     void startCheckout()
-      .catch(() => {
-        /* opening the tab failed; let the user retry */
+      .catch((error: unknown) => {
+        showLicenseStatus(
+          error instanceof Error && error.message === "gumroad-not-configured"
+            ? "options_license_config_error"
+            : "options_checkout_error",
+          "error",
+        );
       })
       .finally(() => {
-        upgradeBtn.disabled = view.premiumUnlocked;
+        upgradeBtn.disabled = isPremiumPurchased(
+          {
+            premium_unlocked: view.premiumUnlocked,
+            premium_verified_at: view.premiumVerifiedAt,
+            premium_grace_until: view.premiumGraceUntil,
+            trial_start_ts: view.trialStartTs,
+          },
+          Date.now(),
+        );
       });
   });
 
@@ -595,7 +643,10 @@ function bindEvents(): void {
     key:
       | "options_license_invalid"
       | "options_license_applied"
-      | "options_license_storage_error",
+      | "options_license_storage_error"
+      | "options_license_network_error"
+      | "options_license_config_error"
+      | "options_checkout_error",
     kind: "ok" | "error",
   ): void => {
     if (!licenseStatus) return;
@@ -615,6 +666,10 @@ function bindEvents(): void {
           licenseInput.value = "";
         } else if (res.reason === "storage-error") {
           showLicenseStatus("options_license_storage_error", "error");
+        } else if (res.reason === "network-error") {
+          showLicenseStatus("options_license_network_error", "error");
+        } else if (res.reason === "config-error") {
+          showLicenseStatus("options_license_config_error", "error");
         } else {
           showLicenseStatus("options_license_invalid", "error");
         }
@@ -752,6 +807,8 @@ function watchStorage(): void {
     const watched: string[] = [
       STORAGE_KEYS.trialStartTs,
       STORAGE_KEYS.premiumUnlocked,
+      STORAGE_KEYS.premiumVerifiedAt,
+      STORAGE_KEYS.premiumGraceUntil,
       STORAGE_KEYS.sites,
       STORAGE_KEYS.usageByDate,
       STORAGE_KEYS.dailyLimitMinutes,
@@ -764,6 +821,8 @@ function watchStorage(): void {
     void loadState().then((next) => {
       view.trialStartTs = next.trialStartTs;
       view.premiumUnlocked = next.premiumUnlocked;
+      view.premiumVerifiedAt = next.premiumVerifiedAt;
+      view.premiumGraceUntil = next.premiumGraceUntil;
       if (STORAGE_KEYS.sites in changes) {
         view.sites = next.sites;
         renderSites();

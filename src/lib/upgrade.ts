@@ -1,21 +1,24 @@
 /**
- * @file Pure helpers for the Stripe-backed upgrade flow: build the checkout
- * URL, validate return URLs and license codes, and classify what action a
- * return URL should trigger. The wrappers that actually touch chrome.tabs /
- * chrome.storage live in `src/upgrade.ts`.
+ * @file Pure helpers for the Gumroad-backed Premium flow. Network and
+ * chrome.storage side effects live in `src/upgrade.ts`.
  */
 
-/** Stripe Payment Link target. Replace with the real URL before release. */
-export const STRIPE_CHECKOUT_URL =
-  "https://buy.stripe.com/REPLACE_WITH_REAL_PAYMENT_LINK";
+export const GUMROAD_VERIFY_URL =
+  "https://api.gumroad.com/v2/licenses/verify";
 
-/** Origins+path-prefixes recognized as post-checkout return URLs. */
-export const RETURN_URL_PATTERNS: readonly string[] = [
-  "https://anti-distraction.example/unlock",
-];
+const BUILD_ENV = (
+  import.meta as ImportMeta & {
+    env?: Record<string, string | undefined>;
+  }
+).env ?? {};
 
-/** Query-string key carrying the unlock token on a return URL. */
-export const UNLOCK_PARAM = "ad_unlock";
+export const GUMROAD_PRODUCT_ID =
+  BUILD_ENV.VITE_GUMROAD_PRODUCT_ID?.trim() ?? "";
+export const GUMROAD_CHECKOUT_URL =
+  BUILD_ENV.VITE_GUMROAD_CHECKOUT_URL?.trim() ?? "";
+
+export const REVERIFY_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
+export const OFFLINE_GRACE_MS = 14 * 24 * 60 * 60 * 1000;
 
 const LICENSE_MIN_LEN = 4;
 const LICENSE_MAX_LEN = 128;
@@ -23,119 +26,139 @@ const LICENSE_PATTERN = /^[A-Za-z0-9_-]+$/;
 
 export type UpgradeConfig = {
   checkoutUrl: string;
-  returnUrlPatterns: readonly string[];
-  unlockParam: string;
+  productId: string;
+  verifyUrl: string;
 };
 
 export const DEFAULT_CONFIG: UpgradeConfig = {
-  checkoutUrl: STRIPE_CHECKOUT_URL,
-  returnUrlPatterns: RETURN_URL_PATTERNS,
-  unlockParam: UNLOCK_PARAM,
+  checkoutUrl: GUMROAD_CHECKOUT_URL,
+  productId: GUMROAD_PRODUCT_ID,
+  verifyUrl: GUMROAD_VERIFY_URL,
 };
 
-/**
- * Generates a per-install identifier used as Stripe `client_reference_id`.
- * The `rng` indirection exists so tests can inject a deterministic source.
- */
-export function generateInstallId(
-  rng: () => string = defaultRandomId,
-): string {
-  return rng();
-}
+export type GumroadPurchase = {
+  product_id?: unknown;
+  refunded?: unknown;
+  disputed?: unknown;
+  chargebacked?: unknown;
+};
 
-function defaultRandomId(): string {
-  const c = (globalThis as { crypto?: Crypto }).crypto;
-  if (c && typeof c.randomUUID === "function") return c.randomUUID();
-  return (
-    "id-" +
-    Math.random().toString(36).slice(2, 10) +
-    Date.now().toString(36)
-  );
-}
+export type GumroadVerifyResponse = {
+  success?: unknown;
+  purchase?: unknown;
+};
 
-/**
- * Returns the checkout URL with `client_reference_id=<installId>` attached
- * so the post-checkout webhook can correlate the purchase back to this user.
- */
-export function buildCheckoutUrl(
-  installId: string,
-  config: UpgradeConfig = DEFAULT_CONFIG,
-): string {
-  const url = new URL(config.checkoutUrl);
-  if (installId) {
-    url.searchParams.set("client_reference_id", installId);
-  }
-  return url.toString();
-}
+export type LicenseRejectionReason =
+  | "invalid-response"
+  | "product-mismatch"
+  | "refunded"
+  | "disputed"
+  | "chargebacked";
 
-/** True when `rawUrl` matches a configured return URL pattern (origin + path prefix). */
-export function isReturnUrl(
-  rawUrl: string,
+export type LicenseEvaluation =
+  | { valid: true }
+  | { valid: false; reason: LicenseRejectionReason };
+
+/** True only when both public Gumroad identifiers are release-ready. */
+export function isUpgradeConfigured(
   config: UpgradeConfig = DEFAULT_CONFIG,
 ): boolean {
-  let parsed: URL;
+  if (config.productId.trim().length === 0) return false;
+  if (config.checkoutUrl.includes("REPLACE_")) return false;
   try {
-    parsed = new URL(rawUrl);
+    const checkout = new URL(config.checkoutUrl);
+    const verify = new URL(config.verifyUrl);
+    return checkout.protocol === "https:" && verify.protocol === "https:";
   } catch {
     return false;
   }
-  return config.returnUrlPatterns.some((pat) => {
-    try {
-      const p = new URL(pat);
-      return (
-        parsed.origin === p.origin &&
-        parsed.pathname.startsWith(p.pathname)
-      );
-    } catch {
-      return false;
-    }
-  });
 }
 
-/** Extracts the unlock token from a URL's query string; null when absent/empty. */
-export function parseUnlockToken(
-  rawUrl: string,
+/** Returns the configured Gumroad product URL without attaching user data. */
+export function buildCheckoutUrl(
   config: UpgradeConfig = DEFAULT_CONFIG,
-): string | null {
-  let parsed: URL;
-  try {
-    parsed = new URL(rawUrl);
-  } catch {
-    return null;
+): string {
+  if (!isUpgradeConfigured(config)) {
+    throw new Error("gumroad-not-configured");
   }
-  const v = parsed.searchParams.get(config.unlockParam);
-  return v && v.length > 0 ? v : null;
+  return new URL(config.checkoutUrl).toString();
 }
 
-/** True when `code` is a 4-128 character `[A-Za-z0-9_-]+` license string. */
+/** Normalizes a user-entered key for verification and local storage. */
+export function normalizeLicenseCode(code: string): string {
+  return code.trim();
+}
+
+/** Performs a local syntax check only; this never grants Premium. */
 export function isValidLicenseCode(code: unknown): boolean {
   if (typeof code !== "string") return false;
-  const trimmed = code.trim();
-  if (trimmed.length < LICENSE_MIN_LEN) return false;
-  if (trimmed.length > LICENSE_MAX_LEN) return false;
-  return LICENSE_PATTERN.test(trimmed);
+  const normalized = normalizeLicenseCode(code);
+  if (normalized.length < LICENSE_MIN_LEN) return false;
+  if (normalized.length > LICENSE_MAX_LEN) return false;
+  return LICENSE_PATTERN.test(normalized);
 }
 
-export type UnlockResult =
-  | { ok: true }
-  | { ok: false; reason: "invalid-url" | "missing-token" | "invalid-token" | "storage-error" };
+/** Converts Gumroad's response into the only states allowed to grant access. */
+export function evaluateGumroadResponse(
+  raw: unknown,
+  expectedProductId: string,
+): LicenseEvaluation {
+  if (!raw || typeof raw !== "object") {
+    return { valid: false, reason: "invalid-response" };
+  }
+  const response = raw as GumroadVerifyResponse;
+  if (response.success !== true) {
+    return { valid: false, reason: "invalid-response" };
+  }
+  if (!response.purchase || typeof response.purchase !== "object") {
+    return { valid: false, reason: "invalid-response" };
+  }
 
-export type ReturnUrlOutcome =
-  | { kind: "unlock"; token: string }
-  | { kind: "ignore"; reason: "invalid-url" | "missing-token" | "invalid-token" };
+  const purchase = response.purchase as GumroadPurchase;
+  if (
+    typeof purchase.product_id !== "string" ||
+    purchase.product_id !== expectedProductId
+  ) {
+    return { valid: false, reason: "product-mismatch" };
+  }
+  if (
+    typeof purchase.refunded !== "boolean" ||
+    typeof purchase.chargebacked !== "boolean" ||
+    typeof purchase.disputed !== "boolean"
+  ) {
+    return { valid: false, reason: "invalid-response" };
+  }
+  if (purchase.refunded === true) {
+    return { valid: false, reason: "refunded" };
+  }
+  if (purchase.chargebacked === true) {
+    return { valid: false, reason: "chargebacked" };
+  }
+  if (purchase.disputed === true) {
+    return { valid: false, reason: "disputed" };
+  }
+  return { valid: true };
+}
 
-/**
- * Decides what to do with a URL the user navigated to: trigger an unlock
- * with the parsed token, or ignore it with a structured reason. Centralizes
- * the validation chain so the caller does not duplicate the checks.
- */
-export function classifyReturnUrl(
-  rawUrl: string,
-  config: UpgradeConfig = DEFAULT_CONFIG,
-): ReturnUrlOutcome {
-  if (!isReturnUrl(rawUrl, config)) return { kind: "ignore", reason: "invalid-url" };
-  const token = parseUnlockToken(rawUrl, config);
-  if (token === null) return { kind: "ignore", reason: "missing-token" };
-  if (!isValidLicenseCode(token)) return { kind: "ignore", reason: "invalid-token" };
-  return { kind: "unlock", token };
+/** True once a successful verification is old enough to require refreshing. */
+export function shouldReverify(
+  verifiedAt: number | null,
+  now: number = Date.now(),
+): boolean {
+  if (verifiedAt === null || !Number.isFinite(verifiedAt)) return true;
+  const age = now - verifiedAt;
+  return age < 0 || age >= REVERIFY_INTERVAL_MS;
+}
+
+/** True only during the bounded offline grace created by a valid purchase. */
+export function isWithinOfflineGrace(
+  graceUntil: number | null,
+  now: number = Date.now(),
+): boolean {
+  return (
+    typeof graceUntil === "number" &&
+    Number.isFinite(graceUntil) &&
+    now >= 0 &&
+    now <= graceUntil
+  );
 }
